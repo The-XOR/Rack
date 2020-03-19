@@ -1,6 +1,6 @@
 RACK_DIR ?= .
-VERSION := 1.dev.$(shell git rev-parse --short HEAD)
-# VERSION := 1.1.6
+# VERSION := 1.dev.$(shell git rev-parse --short HEAD)
+VERSION := 1.1.6
 
 FLAGS += -DVERSION=$(VERSION)
 FLAGS += -Iinclude -Idep/include
@@ -110,7 +110,7 @@ ifdef ARCH_LIN
 	cp -R $(DIST_RES) dist/Rack/
 	# Manually check that no nonstandard shared libraries are linked
 	ldd dist/Rack/$(TARGET)
-	cp Fundamental.zip dist/Rack/
+	# cp Fundamental.zip dist/Rack/
 	# Make ZIP
 	cd dist && zip -q -9 -r $(DIST_NAME).zip Rack
 endif
@@ -145,13 +145,13 @@ ifdef ARCH_WIN
 	cp /mingw64/bin/libwinpthread-1.dll dist/Rack/
 	cp /mingw64/bin/libstdc++-6.dll dist/Rack/
 	cp /mingw64/bin/libgcc_s_seh-1.dll dist/Rack/
-	cp Fundamental.zip dist/Rack/
+	#cp Fundamental.zip dist/Rack/
 	# Make ZIP
 	cd dist && zip -q -9 -r $(DIST_NAME).zip Rack
 	# Make NSIS installer
 	# pacman -S mingw-w64-x86_64-nsis
-	makensis -DVERSION=$(VERSION) installer.nsi
-	mv installer.exe dist/$(DIST_NAME).exe
+	#makensis -DVERSION=$(VERSION) installer.nsi
+	#mv installer.exe dist/$(DIST_NAME).exe
 endif
 
 	# Rack SDK
