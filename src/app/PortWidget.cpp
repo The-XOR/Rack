@@ -66,10 +66,17 @@ void PortWidget::onButton(const event::Button& e) {
 	if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_RIGHT) {
 		CableWidget* cw = APP->scene->rack->getTopCable(this);
 		if (cw) {
-			if ((APP->window->getMods() & RACK_MOD_MASK) == RACK_MOD_CTRL) {
-				int id = APP->scene->rack->nextCableColorId++;
-				APP->scene->rack->nextCableColorId %= settings::cableColors.size();
-				cw->color = settings::cableColors[id];
+			if ((APP->window->getMods() & RACK_MOD_MASK) & GLFW_MOD_CONTROL) {
+				if ((APP->window->getMods() & RACK_MOD_MASK) & GLFW_MOD_SHIFT) 
+				{
+					if(APP->scene->rack->nextCableColorId > 0)
+						APP->scene->rack->nextCableColorId--;
+				} else
+				{
+					if(APP->scene->rack->nextCableColorId < settings::cableColors.size()-1)
+						APP->scene->rack->nextCableColorId++;
+				}
+				cw->color = settings::cableColors[APP->scene->rack->nextCableColorId];
 			} else 
 			{
 				// history::CableRemove

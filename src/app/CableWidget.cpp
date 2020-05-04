@@ -85,9 +85,10 @@ CableWidget::CableWidget() {
 
 	color = color::BLACK_TRANSPARENT;
 	if (!settings::cableColors.empty()) {
-		int id = APP->scene->rack->nextCableColorId++;
+		/*int id = APP->scene->rack->nextCableColorId++;
 		APP->scene->rack->nextCableColorId %= settings::cableColors.size();
-		color = settings::cableColors[id];
+		*/
+		color = settings::cableColors[APP->scene->rack->nextCableColorId];
 	}
 }
 
