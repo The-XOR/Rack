@@ -610,6 +610,29 @@ inline void BrowserSearchField::onSelectKey(const event::SelectKey& e) {
 					e.consume(this);
 				}
 			} break;
+
+			case GLFW_KEY_F1: {
+				text = "";
+				ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
+				browser->clear();
+				e.consume(this);
+			}
+			break;
+
+			case GLFW_KEY_F2:
+			{
+				ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
+				browser->brand = "TheXOR";
+				browser->refresh();
+			}
+			break;
+			case GLFW_KEY_F3:
+			{
+				ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
+				browser->brand = "VCV";
+				browser->refresh();
+			}
+			break;
 		}
 	}
 
@@ -627,12 +650,14 @@ inline void BrowserSearchField::onAction(const event::Action& e) {
 	// Get first ModelBox
 	ModelBox* mb = NULL;
 	ModuleBrowser* browser = getAncestorOfType<ModuleBrowser>();
-	for (Widget* w : browser->modelContainer->children) {
-		if (w->visible) {
-			mb = dynamic_cast<ModelBox*>(w);
-			break;
-		}
-	}
+	for (Widget* w : browser->modelContainer->children)
+				{
+					if (w->visible)
+					{
+						mb = dynamic_cast<ModelBox *>(w);
+						break;
+					}
+				}
 
 	if (mb) {
 		chooseModel(mb->model);
