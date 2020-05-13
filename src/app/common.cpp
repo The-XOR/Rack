@@ -4,15 +4,16 @@
 namespace rack {
 namespace app {
 
+#define TOSTRINGX(x) TOSTRING(x) " (XORified version)"
 
 const std::string APP_NAME = "VCV Rack";
-const std::string APP_VERSION = TOSTRING(VERSION);
+const std::string APP_VERSION = TOSTRINGX(VERSION);
 #if defined ARCH_WIN
-	const std::string APP_ARCH = "win";
+		const std::string APP_ARCH = "win";
 #elif ARCH_MAC
-	const std::string APP_ARCH = "mac";
+		const std::string APP_ARCH = "mac";
 #elif defined ARCH_LIN
-	const std::string APP_ARCH = "lin";
+		const std::string APP_ARCH = "lin";
 #endif
 
 const std::string ABI_VERSION = "1";
