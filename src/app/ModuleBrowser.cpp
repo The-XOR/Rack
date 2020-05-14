@@ -622,6 +622,8 @@ inline void BrowserSearchField::onSelectKey(const event::SelectKey& e) {
 			case GLFW_KEY_F2:
 			{
 				ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
+				browser->clear();
+				text = "";
 				browser->brand = "TheXOR";
 				browser->refresh();
 			}
@@ -629,6 +631,8 @@ inline void BrowserSearchField::onSelectKey(const event::SelectKey& e) {
 			case GLFW_KEY_F3:
 			{
 				ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
+				browser->clear();
+				text = "";
 				browser->brand = "VCV";
 				browser->refresh();
 			}
