@@ -13,4 +13,5 @@
 /settings.json
 /screenshots
 .vs/
-.vscode/
+
+*.vcv
