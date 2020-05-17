@@ -94,7 +94,8 @@ static ModuleWidget* chooseModel(plugin::Model* model) {
 	APP->history->push(h);
 
 	// Hide Module Browser
-	APP->scene->moduleBrowser->hide();
+	if ((APP->window->getMods() & RACK_MOD_MASK) != GLFW_MOD_SHIFT)
+		APP->scene->moduleBrowser->hide();
 
 	return moduleWidget;
 }
@@ -315,7 +316,7 @@ struct BrowserSidebar : widget::Widget {
 
 		// Clear filters
 		clearButton = new ClearButton;
-		clearButton->text = "Reset filters";
+		clearButton->text = "Reset filters (F1/F2/F3)";
 		addChild(clearButton);
 
 		// Tag label
@@ -544,7 +545,7 @@ struct ModuleBrowser : widget::OpaqueWidget {
 			if (w->visible)
 				modelsLen++;
 		}
-		modelLabel->text = string::f("Modules (%d) Click and drag a module to place it in the rack.", modelsLen);
+		modelLabel->text = string::f("Modules (%d) Click and drag a module to place it in the rack. Use SHIFT for multiple modules", modelsLen);
 	}
 
 	void clear() {
