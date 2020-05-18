@@ -1,5 +1,6 @@
 #include <app/Scene.hpp>
 #include <app/ModuleBrowser.hpp>
+#include <app/colorBrowser.hpp>
 #include <app.hpp>
 #include <system.hpp>
 #include <network.hpp>
@@ -35,6 +36,10 @@ Scene::Scene() {
 	moduleBrowser = moduleBrowserCreate();
 	moduleBrowser->hide();
 	addChild(moduleBrowser);
+
+	colorBrowser = colorBrowserCreate();
+	colorBrowser->hide();
+	addChild(colorBrowser);
 
 	frameRateWidget = new FrameRateWidget;
 	frameRateWidget->box.size = math::Vec(80.0, 30.0);
@@ -132,6 +137,10 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 		}
 		else if ((e.key == GLFW_KEY_ENTER || e.key == GLFW_KEY_KP_ENTER) && (e.mods & RACK_MOD_MASK) == 0) {
 			moduleBrowser->show();
+			e.consume(this);
+		}
+		else if ((e.key == GLFW_KEY_F2) && (e.mods & RACK_MOD_MASK) == 0) {
+			colorBrowser->show();
 			e.consume(this);
 		}
 		else if (e.key == GLFW_KEY_F1 && (e.mods & RACK_MOD_MASK) == 0) {
