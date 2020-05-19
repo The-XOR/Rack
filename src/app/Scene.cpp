@@ -140,7 +140,10 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 			e.consume(this);
 		}
 		else if ((e.key == GLFW_KEY_F2) && (e.mods & RACK_MOD_MASK) == 0) {
-			colorBrowser->show();
+			if(colorBrowser->visible)
+				colorBrowser->hide();
+			else
+				colorBrowser->show();
 			e.consume(this);
 		}
 		else if (e.key == GLFW_KEY_F1 && (e.mods & RACK_MOD_MASK) == 0) {
