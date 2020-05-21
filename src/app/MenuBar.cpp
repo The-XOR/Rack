@@ -196,7 +196,7 @@ struct EditButton : MenuButton {
 
 		RedoItem* redoItem = new RedoItem;
 		redoItem->text = "Redo " + APP->history->getRedoName();
-		redoItem->rightText = RACK_MOD_CTRL_NAME "+" RACK_MOD_SHIFT_NAME "+Z";
+		redoItem->rightText = RACK_MOD_CTRL_NAME "+Y";
 		redoItem->disabled = !APP->history->canRedo();
 		menu->addChild(redoItem);
 

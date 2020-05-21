@@ -625,7 +625,7 @@ inline void BrowserSearchField::onSelectKey(const event::SelectKey& e) {
 				ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
 				browser->clear();
 				text = "";
-				browser->brand = "TheXOR";
+				browser->brand = settings::F2Filter;
 				browser->refresh();
 			}
 			break;

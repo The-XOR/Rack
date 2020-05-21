@@ -43,7 +43,15 @@ std::vector<NVGcolor> cableColors = {
 	nvgRGB(0x0c, 0x8e, 0x15), // green
 	nvgRGB(0xc9, 0x18, 0x47), // red
 	nvgRGB(0x09, 0x86, 0xad), // blue
+	nvgRGB(255,140,198),
+	nvgRGB(128,0,255),
+	nvgRGB(20,20,20),
+	nvgRGB(210,210,210),
+	nvgRGB(255,128,0),
+	nvgRGB(202,0,0),
+
 };
+std::string F2Filter="TheXOR";
 
 
 json_t* toJson() {
@@ -88,6 +96,8 @@ json_t* toJson() {
 	}
 
 	json_object_set_new(rootJ, "patchPath", json_string(patchPath.c_str()));
+
+	json_object_set_new(rootJ, "F2Filter", json_string(F2Filter.c_str()));
 
 	json_t* cableColorsJ = json_array();
 	for (NVGcolor cableColor : cableColors) {
@@ -177,6 +187,10 @@ void fromJson(json_t* rootJ) {
 	json_t* patchPathJ = json_object_get(rootJ, "patchPath");
 	if (patchPathJ)
 		patchPath = json_string_value(patchPathJ);
+
+	json_t* f2 = json_object_get(rootJ, "F2Filter");
+	if (f2)
+		F2Filter = json_string_value(f2);
 
 	json_t* cableColorsJ = json_object_get(rootJ, "cableColors");
 	if (cableColorsJ) {

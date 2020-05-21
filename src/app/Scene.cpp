@@ -111,7 +111,7 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 			APP->history->undo();
 			e.consume(this);
 		}
-		else if (e.key == GLFW_KEY_Z && (e.mods & RACK_MOD_MASK) == (RACK_MOD_CTRL | GLFW_MOD_SHIFT)) {
+		else if (e.key == GLFW_KEY_Y && (e.mods & RACK_MOD_MASK) == RACK_MOD_CTRL) {
 			APP->history->redo();
 			e.consume(this);
 		}
@@ -136,13 +136,14 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 			e.consume(this);
 		}
 		else if ((e.key == GLFW_KEY_ENTER || e.key == GLFW_KEY_KP_ENTER) && (e.mods & RACK_MOD_MASK) == 0) {
+			colorBrowser->hide();
 			moduleBrowser->show();
 			e.consume(this);
 		}
 		else if ((e.key == GLFW_KEY_F2) && (e.mods & RACK_MOD_MASK) == 0) {
 			if(colorBrowser->visible)
 				colorBrowser->hide();
-			else
+			else if(!moduleBrowser->visible)
 				colorBrowser->show();
 			e.consume(this);
 		}
@@ -161,6 +162,8 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 			APP->window->setFullScreen(!APP->window->isFullScreen());
 			e.consume(this);
 		}
+		else if(colorBrowser->visible)
+			colorBrowser->onHoverKey(e);
 	}
 }
 

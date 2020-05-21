@@ -38,6 +38,7 @@ extern int frameSwapInterval;
 extern float autosavePeriod;
 extern bool skipLoadOnLaunch;
 extern std::string patchPath;
+extern std::string F2Filter;
 extern std::vector<NVGcolor> cableColors;
 
 json_t* toJson();
