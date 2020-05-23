@@ -66,12 +66,17 @@ void PortWidget::onButton(const event::Button& e) {
 	if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_RIGHT) {
 		CableWidget* cw = APP->scene->rack->getTopCable(this);
 		if (cw) {
-			if ((APP->window->getMods() & RACK_MOD_MASK) & GLFW_MOD_CONTROL) {
-				if ((APP->window->getMods() & RACK_MOD_MASK) & GLFW_MOD_SHIFT) 
+			int mod = (APP->window->getMods() & RACK_MOD_MASK);
+			if (mod & GLFW_MOD_CONTROL) {
+				// ctrl key pressed -> xor extension ON!
+				if (mod & GLFW_MOD_SHIFT)  //ctrl+shift: decrement color
 				{
 					if(APP->scene->rack->nextCableColorId > 0)
 						APP->scene->rack->nextCableColorId--;
-				} else
+				} else if(mod & GLFW_MOD_ALT) // ctrl + alt: set current color
+				{
+					// non incrementa ne' decrementa: quind, non fa un cazzo
+				} else // ctrl (da solo): increment color
 				{
 					if(APP->scene->rack->nextCableColorId < settings::cableColors.size()-1)
 						APP->scene->rack->nextCableColorId++;

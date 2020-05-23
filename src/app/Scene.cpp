@@ -135,7 +135,7 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 			settings::zoom = 0.f;
 			e.consume(this);
 		}
-		else if ((e.key == GLFW_KEY_ENTER || e.key == GLFW_KEY_KP_ENTER) && (e.mods & RACK_MOD_MASK) == 0) {
+		else if ((e.key == GLFW_KEY_F1 || e.key == GLFW_KEY_ENTER || e.key == GLFW_KEY_KP_ENTER) && (e.mods & RACK_MOD_MASK) == 0) {
 			colorBrowser->hide();
 			moduleBrowser->show();
 			e.consume(this);
@@ -145,13 +145,6 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 				colorBrowser->hide();
 			else if(!moduleBrowser->visible)
 				colorBrowser->show();
-			e.consume(this);
-		}
-		else if (e.key == GLFW_KEY_F1 && (e.mods & RACK_MOD_MASK) == 0) {
-			std::thread t([] {
-				system::openBrowser("https://vcvrack.com/manual/");
-			});
-			t.detach();
 			e.consume(this);
 		}
 		else if (e.key == GLFW_KEY_F3 && (e.mods & RACK_MOD_MASK) == 0) {
