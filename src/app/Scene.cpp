@@ -151,6 +151,13 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 			settings::cpuMeter ^= true;
 			e.consume(this);
 		}
+		else if (e.key == GLFW_KEY_F4 && (e.mods & RACK_MOD_MASK) == 0) {
+			if(settings::cableOpacity > 0.16f) 
+				settings::cableOpacity = 0.15f; 
+			else
+				settings::cableOpacity = 0.7; 
+			e.consume(this);
+		}
 		else if (e.key == GLFW_KEY_F11 && (e.mods & RACK_MOD_MASK) == 0) {
 			APP->window->setFullScreen(!APP->window->isFullScreen());
 			e.consume(this);
