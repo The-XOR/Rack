@@ -23,6 +23,7 @@
 #include <history.hpp>
 #include <settings.hpp>
 #include <tag.hpp>
+#include <asset.hpp>
 
 #include <set>
 #include <algorithm>
@@ -34,6 +35,82 @@ namespace app {
 
 // Static functions
 
+struct Favourites
+{
+	bool showFavorites;
+	void Init(std::vector<plugin::Plugin*> &plugins)
+	{
+		showFavorites = false;
+		for (plugin::Plugin* plugin : plugin::plugins) 
+			for (plugin::Model* model : plugin->models) 
+					favorites[mkFavoriteName(model)] = false;
+		
+		load();
+	}
+
+	void toggle(rack::plugin::Model *model)
+	{
+		std::string nm = mkFavoriteName(model);
+		favorites[nm] = !favorites[nm];
+	}
+
+	bool isFavorite(rack::plugin::Model *model)
+	{
+		return favorites[mkFavoriteName(model)];
+	}
+
+	void load()
+	{
+		std::string favfile = rack::asset::userDir + "/favorites-v" + app::ABI_VERSION + ".json";
+		FILE* file = fopen(favfile.c_str(), "r");
+		if (!file)
+			return;
+		DEFER({
+			fclose(file);
+		});
+
+		json_error_t error;
+		json_t* rootJ = json_loadf(file, 0, &error);
+		if (!rootJ)
+			throw UserException(string::f("Settings file has invalid JSON at %d:%d %s", error.line, error.column, error.text));
+
+		for (auto it = favorites.begin(); it != favorites.end(); it++ )
+		{
+			json_t* vj = json_object_get(rootJ, it->first.c_str());
+			if (vj)
+				favorites[it->first] = json_integer_value(vj) > 0;
+		}
+		json_decref(rootJ);
+	}
+
+	void save()
+	{
+		std::string favfile = rack::asset::userDir + "/favorites-v" + app::ABI_VERSION + ".json";
+		json_t* rootJ = json_object();
+		for (auto it = favorites.begin(); it != favorites.end(); it++ )
+		{
+			json_object_set_new(rootJ, it->first.c_str(), json_integer(it->second ? 1 : 0));
+		}
+
+		FILE* file = fopen(favfile.c_str(), "w");
+		if (!file)
+			return;
+		DEFER({
+			fclose(file);
+		});
+
+		json_dumpf(rootJ, file, JSON_INDENT(2) | JSON_REAL_PRECISION(9));
+		json_decref(rootJ);
+	}
+
+private:
+	std::map<std::string, bool> favorites;
+	std::string mkFavoriteName(rack::plugin::Model *model)
+	{
+		return model->plugin->slug + ":" + model->slug;
+	}
+
+};
 
 static float modelScore(plugin::Model* model, const std::string& search) {
 	if (search.empty())
@@ -55,9 +132,9 @@ static float modelScore(plugin::Model* model, const std::string& search) {
 	}
 	float score = string::fuzzyScore(string::lowercase(s), string::lowercase(search));
 	return score;
-}
+};
 
-static bool isModelVisible(plugin::Model* model, const std::string& search, const std::string& brand, int tagId) {
+static bool isModelVisible(plugin::Model* model, const std::string& search, const std::string& brand, int tagId, struct Favourites &favor) {
 	// Filter search query
 	if (search != "") {
 		float score = modelScore(model, search);
@@ -78,10 +155,14 @@ static bool isModelVisible(plugin::Model* model, const std::string& search, cons
 			return false;
 	}
 
+	// filter favorites
+	if(favor.showFavorites)
+		return favor.isFavorite(model);
+
 	return true;
 }
 
-static ModuleWidget* chooseModel(plugin::Model* model) {
+static ModuleWidget* chooseModel(plugin::Model* model, bool *hide) {
 	// Create module
 	ModuleWidget* moduleWidget = model->createModuleWidget();
 	assert(moduleWidget);
@@ -94,9 +175,7 @@ static ModuleWidget* chooseModel(plugin::Model* model) {
 	APP->history->push(h);
 
 	// Hide Module Browser
-	if ((APP->window->getMods() & RACK_MOD_MASK) != GLFW_MOD_SHIFT)
-		APP->scene->moduleBrowser->hide();
-
+	*hide = ((APP->window->getMods() & RACK_MOD_MASK) != GLFW_MOD_SHIFT);
 	return moduleWidget;
 }
 
@@ -111,8 +190,9 @@ V get_default(const std::map<K, V>& m, const K& key, const V& def) {
 
 // Widgets
 
-
+struct ModuleBrowser;
 struct BrowserOverlay : widget::OpaqueWidget {
+	BrowserOverlay *Create();
 	void step() override {
 		box = parent->box.zeroPos();
 		// Only step if visible, since there are potentially thousands of descendants that don't need to be stepped.
@@ -120,16 +200,22 @@ struct BrowserOverlay : widget::OpaqueWidget {
 			OpaqueWidget::step();
 	}
 
+	void toggleFavorite(rack::plugin::Model *model);
+
 	void onButton(const event::Button& e) override {
 		OpaqueWidget::onButton(e);
 		if (e.getTarget() != this)
 			return;
 
 		if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT) {
-			hide();
+			Hide();
 			e.consume(this);
 		}
 	}
+
+	void Hide();
+	
+	ModuleBrowser* mybrowser;
 };
 
 
@@ -181,18 +267,20 @@ struct ModelBox : widget::OpaqueWidget {
 		box.size.x = previewWidget->box.size.x;
 	}
 
+	bool AmIfavourite();
 	void draw(const DrawArgs& args) override {
 		// Lazily create preview when drawn
 		if (!previewFb) {
 			createPreview();
 		}
 
+		bool fav = AmIfavourite();
 		// Draw shadow
 		nvgBeginPath(args.vg);
 		float r = 10; // Blur radius
 		float c = 10; // Corner radius
 		nvgRect(args.vg, -r, -r, box.size.x + 2 * r, box.size.y + 2 * r);
-		NVGcolor shadowColor = nvgRGBAf(0, 0, 0, 0.5);
+		NVGcolor shadowColor = nvgRGBAf(0, fav ? 1 : 0,  0, fav ? 0.9 : 0.5);
 		NVGcolor transparentColor = nvgRGBAf(0, 0, 0, 0);
 		nvgFillPaint(args.vg, nvgBoxGradient(args.vg, 0, 0, box.size.x, box.size.y, c, r, shadowColor, transparentColor));
 		nvgFill(args.vg);
@@ -218,10 +306,24 @@ struct ModelBox : widget::OpaqueWidget {
 			return;
 
 		if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT) {
-			ModuleWidget* mw = chooseModel(model);
-
-			// Pretend the moduleWidget was clicked so it can be dragged in the RackWidget
-			e.consume(mw);
+			bool tgl = ((APP->window->getMods() & RACK_MOD_MASK) == GLFW_MOD_CONTROL);
+			if(tgl)
+			{
+				BrowserOverlay* overlay = getAncestorOfType<BrowserOverlay>();
+				overlay->toggleFavorite(model);
+				e.consume(this);
+			} else
+			{
+				bool hide;
+				ModuleWidget* mw = chooseModel(model, &hide);
+				if(hide)
+				{
+					BrowserOverlay* overlay = getAncestorOfType<BrowserOverlay>();
+					overlay->Hide();
+				}
+				// Pretend the moduleWidget was clicked so it can be dragged in the RackWidget
+				e.consume(mw);
+			}
 		}
 	}
 
@@ -316,7 +418,7 @@ struct BrowserSidebar : widget::Widget {
 
 		// Clear filters
 		clearButton = new ClearButton;
-		clearButton->text = "Reset filters (F1/F2/F3)";
+		clearButton->text = "Reset filters (F1/F2/F3/F4)";
 		addChild(clearButton);
 
 		// Tag label
@@ -400,6 +502,7 @@ struct ModuleBrowser : widget::OpaqueWidget {
 	ui::Label* modelLabel;
 	ui::MarginLayout* modelMargin;
 	ui::SequentialLayout* modelContainer;
+	Favourites favour;
 
 	std::string search;
 	std::string brand;
@@ -434,6 +537,7 @@ struct ModuleBrowser : widget::OpaqueWidget {
 				modelContainer->addChild(moduleBox);
 			}
 		}
+		favour.Init(plugin::plugins);
 
 		clear();
 	}
@@ -466,7 +570,7 @@ struct ModuleBrowser : widget::OpaqueWidget {
 		for (Widget* w : modelContainer->children) {
 			ModelBox* m = dynamic_cast<ModelBox*>(w);
 			assert(m);
-			m->visible = isModelVisible(m->model, search, brand, tagId);
+			m->visible = isModelVisible(m->model, search, brand, tagId, favour);
 		}
 
 		// Sort ModelBoxes
@@ -506,13 +610,13 @@ struct ModuleBrowser : widget::OpaqueWidget {
 		for (Widget* w : modelContainer->children) {
 			ModelBox* m = dynamic_cast<ModelBox*>(w);
 			assert(m);
-			if (isModelVisible(m->model, search, "", -1))
+			if (isModelVisible(m->model, search, "", -1, favour))
 				filteredModels.push_back(m->model);
 		}
 
 		auto hasModel = [&](const std::string & brand, int tagId) -> bool {
 			for (plugin::Model* model : filteredModels) {
-				if (isModelVisible(model, "", brand, tagId))
+				if (isModelVisible(model, "", brand, tagId, favour))
 					return true;
 			}
 			return false;
@@ -545,7 +649,7 @@ struct ModuleBrowser : widget::OpaqueWidget {
 			if (w->visible)
 				modelsLen++;
 		}
-		modelLabel->text = string::f("Modules (%d) Click and drag a module to place it in the rack. Use SHIFT for multiple modules", modelsLen);
+		modelLabel->text = string::f("Modules (%d) Click and drag a module to place it in the rack. SHIFT=multiple modules, CTRL=favourite", modelsLen);
 	}
 
 	void clear() {
@@ -601,7 +705,7 @@ inline void BrowserSearchField::onSelectKey(const event::SelectKey& e) {
 		switch (e.key) {
 			case GLFW_KEY_ESCAPE: {
 				BrowserOverlay* overlay = getAncestorOfType<BrowserOverlay>();
-				overlay->hide();
+				overlay->Hide();
 				e.consume(this);
 			} break;
 			case GLFW_KEY_BACKSPACE: {
@@ -615,6 +719,7 @@ inline void BrowserSearchField::onSelectKey(const event::SelectKey& e) {
 			case GLFW_KEY_F1: {
 				text = "";
 				ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
+				browser->favour.showFavorites = false;
 				browser->clear();
 				e.consume(this);
 			}
@@ -635,6 +740,15 @@ inline void BrowserSearchField::onSelectKey(const event::SelectKey& e) {
 				browser->clear();
 				text = "";
 				browser->brand = "VCV";
+				browser->refresh();
+			}
+			break;
+			case GLFW_KEY_F4:
+			{
+				ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
+				browser->clear();
+				browser->favour.showFavorites = !browser->favour.showFavorites;
+				text = "";
 				browser->refresh();
 			}
 			break;
@@ -665,7 +779,13 @@ inline void BrowserSearchField::onAction(const event::Action& e) {
 				}
 
 	if (mb) {
-		chooseModel(mb->model);
+		bool hide;
+		chooseModel(mb->model, &hide);
+		if(hide)
+		{
+			BrowserOverlay* overlay = getAncestorOfType<BrowserOverlay>();
+			overlay->Hide();
+		}
 	}
 }
 
@@ -674,17 +794,38 @@ inline void ClearButton::onAction(const event::Action& e) {
 	browser->clear();
 }
 
+BrowserOverlay *BrowserOverlay::Create()
+{
+	mybrowser = new ModuleBrowser;
+	addChild(mybrowser);
+	return this;
+}
+
+void BrowserOverlay::Hide()
+{
+	mybrowser->favour.save();
+	hide();
+}
+
+void BrowserOverlay::toggleFavorite(rack::plugin::Model *model)
+{
+	mybrowser->favour.toggle(model);
+	if(mybrowser->favour.showFavorites)
+		mybrowser->refresh();
+}
+
+bool ModelBox::AmIfavourite()
+{
+	ModuleBrowser *browser = getAncestorOfType<ModuleBrowser>();
+	return browser->favour.isFavorite(model);
+}
 
 // Global functions
 
 
 widget::Widget* moduleBrowserCreate() {
 	BrowserOverlay* overlay = new BrowserOverlay;
-
-	ModuleBrowser* browser = new ModuleBrowser;
-	overlay->addChild(browser);
-
-	return overlay;
+	return overlay->Create();
 }
 
 
