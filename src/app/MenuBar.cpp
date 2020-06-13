@@ -369,7 +369,7 @@ struct ViewButton : MenuButton {
 		menu->addChild(paramTooltipItem);
 
 		LockModulesItem* lockModulesItem = new LockModulesItem;
-		lockModulesItem->text = "Lock modules";
+		lockModulesItem->text = "Lock modules (F5)";
 		lockModulesItem->rightText = CHECKMARK(settings::lockModules);
 		menu->addChild(lockModulesItem);
 
