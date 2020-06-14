@@ -24,6 +24,7 @@
 #include <settings.hpp>
 #include <tag.hpp>
 #include <asset.hpp>
+#include <osdialog.h>
 
 #include <set>
 #include <algorithm>
@@ -43,15 +44,35 @@ struct Favourites
 		showFavorites = false;
 		for (plugin::Plugin* plugin : plugin::plugins) 
 			for (plugin::Model* model : plugin->models) 
-					favorites[mkFavoriteName(model)] = false;
-		
+			{
+				favorites[mkFavoriteName(model)] = false;
+				permanentlyHidden[mkFavoriteName(model)] = false;
+			}
+
 		load();
+		loadHiddens();
 	}
 
 	void toggle(rack::plugin::Model *model)
 	{
 		std::string nm = mkFavoriteName(model);
 		favorites[nm] = !favorites[nm];
+	}
+
+	bool hide(rack::plugin::Model *model)
+	{
+		if(osdialog_message(OSDIALOG_WARNING, OSDIALOG_OK_CANCEL, "Permanently hide this module?"))
+		{
+			permanentlyHidden[mkFavoriteName(model)] = true;
+			saveHiddens();
+			return true;
+		}
+		return false;
+	}
+
+	bool isHidden(rack::plugin::Model *model)
+	{
+		return permanentlyHidden[mkFavoriteName(model)];
 	}
 
 	bool isFavorite(rack::plugin::Model *model)
@@ -72,7 +93,7 @@ struct Favourites
 		json_error_t error;
 		json_t* rootJ = json_loadf(file, 0, &error);
 		if (!rootJ)
-			throw UserException(string::f("Settings file has invalid JSON at %d:%d %s", error.line, error.column, error.text));
+			throw UserException(string::f("Favoutites file has invalid JSON at %d:%d %s", error.line, error.column, error.text));
 
 		for (auto it = favorites.begin(); it != favorites.end(); it++ )
 		{
@@ -80,6 +101,50 @@ struct Favourites
 			if (vj)
 				favorites[it->first] = json_integer_value(vj) > 0;
 		}
+		json_decref(rootJ);
+	}
+
+	void loadHiddens()
+	{
+		std::string hidfile = rack::asset::userDir + "/hiddens-v" + app::ABI_VERSION + ".json";
+		FILE* file = fopen(hidfile.c_str(), "r");
+		if (!file)
+			return;
+		DEFER({
+			fclose(file);
+		});
+
+		json_error_t error;
+		json_t* rootJ = json_loadf(file, 0, &error);
+		if (!rootJ)
+			throw UserException(string::f("Hidden file has invalid JSON at %d:%d %s", error.line, error.column, error.text));
+
+		for (auto it = favorites.begin(); it != favorites.end(); it++ )
+		{
+			json_t* vj = json_object_get(rootJ, it->first.c_str());
+			if (vj)
+				permanentlyHidden[it->first] = json_integer_value(vj) > 0;
+		}
+		json_decref(rootJ);
+	}
+
+	void saveHiddens()
+	{
+		std::string hidfile = rack::asset::userDir + "/hiddens-v" + app::ABI_VERSION + ".json";
+		json_t* rootJ = json_object();
+		for (auto it = permanentlyHidden.begin(); it != permanentlyHidden.end(); it++ )
+		{
+			json_object_set_new(rootJ, it->first.c_str(), json_integer(it->second ? 1 : 0));
+		}
+
+		FILE* file = fopen(hidfile.c_str(), "w");
+		if (!file)
+			return;
+		DEFER({
+			fclose(file);
+		});
+
+		json_dumpf(rootJ, file, JSON_INDENT(2) | JSON_REAL_PRECISION(9));
 		json_decref(rootJ);
 	}
 
@@ -105,6 +170,7 @@ struct Favourites
 
 private:
 	std::map<std::string, bool> favorites;
+	std::map<std::string, bool> permanentlyHidden;
 	std::string mkFavoriteName(rack::plugin::Model *model)
 	{
 		return model->plugin->slug + ":" + model->slug;
@@ -136,6 +202,9 @@ static float modelScore(plugin::Model* model, const std::string& search) {
 
 static bool isModelVisible(plugin::Model* model, const std::string& search, const std::string& brand, int tagId, struct Favourites &favor) {
 	// Filter search query
+	if(favor.isHidden(model))
+		return false;
+
 	if (search != "") {
 		float score = modelScore(model, search);
 		if (score <= 0.f)
@@ -201,6 +270,7 @@ struct BrowserOverlay : widget::OpaqueWidget {
 	}
 
 	void toggleFavorite(rack::plugin::Model *model);
+	void permanentlyHide(rack::plugin::Model *model);
 
 	void onButton(const event::Button& e) override {
 		OpaqueWidget::onButton(e);
@@ -306,11 +376,15 @@ struct ModelBox : widget::OpaqueWidget {
 			return;
 
 		if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT) {
-			bool tgl = ((APP->window->getMods() & RACK_MOD_MASK) == GLFW_MOD_CONTROL);
-			if(tgl)
+			if(((APP->window->getMods() & RACK_MOD_MASK) == GLFW_MOD_CONTROL))
 			{
 				BrowserOverlay* overlay = getAncestorOfType<BrowserOverlay>();
 				overlay->toggleFavorite(model);
+				e.consume(this);
+			} else if(((APP->window->getMods() & RACK_MOD_MASK) == GLFW_MOD_ALT))
+			{
+				BrowserOverlay* overlay = getAncestorOfType<BrowserOverlay>();
+				overlay->permanentlyHide(model);
 				e.consume(this);
 			} else
 			{
@@ -529,15 +603,19 @@ struct ModuleBrowser : widget::OpaqueWidget {
 		modelContainer->spacing = math::Vec(10, 10);
 		modelMargin->addChild(modelContainer);
 
+		favour.Init(plugin::plugins);
+
 		// Add ModelBoxes for each Model
 		for (plugin::Plugin* plugin : plugin::plugins) {
 			for (plugin::Model* model : plugin->models) {
-				ModelBox* moduleBox = new ModelBox;
-				moduleBox->setModel(model);
-				modelContainer->addChild(moduleBox);
+				if(!favour.isHidden(model))
+				{
+					ModelBox* moduleBox = new ModelBox;
+					moduleBox->setModel(model);
+					modelContainer->addChild(moduleBox);
+				}
 			}
 		}
-		favour.Init(plugin::plugins);
 
 		clear();
 	}
@@ -649,7 +727,7 @@ struct ModuleBrowser : widget::OpaqueWidget {
 			if (w->visible)
 				modelsLen++;
 		}
-		modelLabel->text = string::f("Modules (%d) Click and drag a module to place it in the rack. SHIFT=multiple modules, CTRL=favourite", modelsLen);
+		modelLabel->text = string::f("Modules (%d) Click and drag a module to place it in the rack. SHIFT=multiple modules, CTRL=favourite, ALT = permanently hide", modelsLen);
 	}
 
 	void clear() {
@@ -805,6 +883,12 @@ void BrowserOverlay::Hide()
 {
 	mybrowser->favour.save();
 	hide();
+}
+
+void BrowserOverlay::permanentlyHide(rack::plugin::Model *model)
+{
+	if(mybrowser->favour.hide(model))
+		mybrowser->refresh();
 }
 
 void BrowserOverlay::toggleFavorite(rack::plugin::Model *model)
