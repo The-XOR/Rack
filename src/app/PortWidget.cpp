@@ -62,25 +62,13 @@ void PortWidget::draw(const DrawArgs& args) {
 
 void PortWidget::onButton(const event::Button& e) {
 	OpaqueWidget::onButton(e);
-
+/*
 	if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_RIGHT) {
 		CableWidget* cw = APP->scene->rack->getTopCable(this);
 		if (cw) {
 			int mod = (APP->window->getMods() & RACK_MOD_MASK);
 			if (mod & GLFW_MOD_CONTROL) {
 				// ctrl key pressed -> xor extension ON!
-				if (mod & GLFW_MOD_SHIFT)  //ctrl+shift: decrement color
-				{
-					if(APP->scene->rack->nextCableColorId > 0)
-						APP->scene->rack->nextCableColorId--;
-				} else if(mod & GLFW_MOD_ALT) // ctrl + alt: set current color
-				{
-					// non incrementa ne' decrementa: quind, non fa un cazzo
-				} else // ctrl (da solo): increment color
-				{
-					if(APP->scene->rack->nextCableColorId < settings::cableColors.size()-1)
-						APP->scene->rack->nextCableColorId++;
-				}
 				cw->color = settings::cableColors[APP->scene->rack->nextCableColorId];
 			} else 
 			{
@@ -92,6 +80,16 @@ void PortWidget::onButton(const event::Button& e) {
 				APP->scene->rack->removeCable(cw);
 				delete cw;
 			}
+		}
+
+		e.consume(this);
+	}*/
+	if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_RIGHT)
+	{
+		CableWidget *cw = APP->scene->rack->getTopCable(this);
+		if (cw)
+		{
+			cw->color = settings::cableColors[APP->scene->rack->nextCableColorId];
 		}
 
 		e.consume(this);
