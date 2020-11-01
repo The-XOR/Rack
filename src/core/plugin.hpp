@@ -7,6 +7,7 @@ namespace core {
 
 extern Model* modelAudioInterface;
 extern Model* modelAudioInterface16;
+extern Model* modelAudioInterface32;
 extern Model* modelMIDI_CV;
 extern Model* modelMIDI_CC;
 extern Model* modelMIDI_Gate;

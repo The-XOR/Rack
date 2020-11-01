@@ -8,6 +8,7 @@ namespace core {
 void init(rack::Plugin* p) {
 	p->addModel(modelAudioInterface);
 	p->addModel(modelAudioInterface16);
+	p->addModel(modelAudioInterface32);
 	p->addModel(modelMIDI_CV);
 	p->addModel(modelMIDI_CC);
 	p->addModel(modelMIDI_Gate);

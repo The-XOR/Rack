@@ -350,10 +350,64 @@ struct AudioInterface16Widget : ModuleWidget {
 		addChild(audioWidget);
 	}
 };
+struct AudioInterface32Widget : ModuleWidget {
+	typedef AudioInterface<32, 32> TAudioInterface;
+
+	AudioInterface32Widget(TAudioInterface* module) {
+		setModule(module);
+		setPanel(APP->window->loadSvg(asset::system("res/Core/AudioInterface32.svg")));
+
+		addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
+		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
+		addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+
+        float x = 7.661;
+        float x_inc = 19.26-x;
+        for(int k = 0; k<16;k++)
+        {
+            const float row1 = 59.638;
+            const float row2 = 74.251;
+     		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(x+k*x_inc, row1)), module, TAudioInterface::AUDIO_INPUT + k));
+    		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(x+k*x_inc, row2)), module, TAudioInterface::AUDIO_INPUT + 16+k));
+        }
+        for(int k = 0; k<16;k++)
+        {
+            const float row1 = 96.251;
+            const float row2 = 112.252;
+            addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(x+k*x_inc, row1)), module, TAudioInterface::AUDIO_OUTPUT + k));
+            addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(x+k*x_inc, row2)), module, TAudioInterface::AUDIO_OUTPUT + k+16));
+        }
+        
+        x = 13.46;
+        x_inc = 36.661-x;
+        for(int k = 0; k<8;k++)
+        {
+            const float row1 = 55.667;
+            const float row2 = 70.248;
+    		addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(x+k*x_inc, row1)), module, TAudioInterface::INPUT_LIGHT + k));
+    		addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(x+k*x_inc, row2)), module, TAudioInterface::INPUT_LIGHT + k+8));
+        }
+
+        for(int k = 0; k<8;k++)
+        {
+            const float row1 = 92.238;
+            const float row2 = 108.259;
+	    	addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(x+k*x_inc, row1)), module, TAudioInterface::OUTPUT_LIGHT + k));
+	    	addChild(createLightCentered<SmallLight<GreenLight>>(mm2px(Vec(x+k*x_inc, row2)), module, TAudioInterface::OUTPUT_LIGHT + k+8));
+        }
+		
+		AudioWidget* audioWidget = createWidget<AudioWidget>(mm2px(Vec(2.57, 14.839)));
+		audioWidget->box.size = mm2px(Vec(183.883, 28.0));
+		audioWidget->setAudioPort(module ? &module->port : NULL);
+		addChild(audioWidget);
+	}
+};
 
 
 Model* modelAudioInterface = createModel<AudioInterface<8, 8>, AudioInterface8Widget>("AudioInterface");
 Model* modelAudioInterface16 = createModel<AudioInterface<16, 16>, AudioInterface16Widget>("AudioInterface16");
+Model* modelAudioInterface32 = createModel<AudioInterface<32, 32>, AudioInterface32Widget>("AudioInterface32");
 
 
 } // namespace core
