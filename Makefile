@@ -1,8 +1,9 @@
 RACK_DIR ?= .
 # VERSION := 1.dev.$(shell git rev-parse --short HEAD)
 VERSION := 1.1.6
+XORVERSION := 1.1.6c
 
-FLAGS += -DVERSION=$(VERSION)
+FLAGS += -DVERSION=$(VERSION) -DXORVERSION=$(XORVERSION)
 FLAGS += -Iinclude -Idep/include
 
 include arch.mk
@@ -95,7 +96,7 @@ endif
 
 
 DIST_RES := LICENSE* CHANGELOG.md res cacert.pem Core.json template.vcv
-DIST_NAME := Rack-$(VERSION)-$(ARCH)
+DIST_NAME := Rack-$(XORVERSION)-$(ARCH)
 DIST_SDK := Rack-SDK-$(VERSION).zip
 
 # This target is not intended for public use

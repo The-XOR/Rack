@@ -14,6 +14,7 @@ namespace app {
 
 extern const std::string APP_NAME;
 extern const std::string APP_VERSION;
+extern const std::string APP_ORIGVERSION;
 extern const std::string APP_ARCH;
 
 extern const std::string ABI_VERSION;

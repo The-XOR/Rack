@@ -95,7 +95,7 @@ void update() {
 
 
 bool isUpdateAvailable() {
-	return (version != "") && (version != app::APP_VERSION);
+	return (version != "") && (version != app::APP_ORIGVERSION);
 }
 
 

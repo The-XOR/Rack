@@ -5,7 +5,8 @@ namespace rack {
 namespace app {
 
 const std::string APP_NAME = "VCV Rack";
-const std::string APP_VERSION = TOSTRING(VERSION);
+const std::string APP_VERSION = TOSTRING(XORVERSION);
+const std::string APP_ORIGVERSION = TOSTRING(VERSION);
 #if defined ARCH_WIN
 		const std::string APP_ARCH = "win";
 #elif ARCH_MAC

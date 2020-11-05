@@ -48,7 +48,7 @@ struct CV_CC : Module {
 	};
 
 	CCMidiOutput midiOutput;
-	float rateLimiterPhase = 0.f;
+	//float rateLimiterPhase = 0.f;
 	int learningId = -1;
 	int learnedCcs[16] = {};
 
@@ -67,7 +67,7 @@ struct CV_CC : Module {
 	}
 
 	void process(const ProcessArgs& args) override {
-		const float rateLimiterPeriod = 0.010f;
+		/*const float rateLimiterPeriod = 0.010f;
 		rateLimiterPhase += args.sampleTime / rateLimiterPeriod;
 		if (rateLimiterPhase >= 1.f) {
 			rateLimiterPhase -= 1.f;
@@ -75,6 +75,7 @@ struct CV_CC : Module {
 		else {
 			return;
 		}
+riduzione jitter*/
 
 		for (int i = 0; i < 16; i++) {
 			int value = (int) std::round(inputs[CC_INPUTS + i].getVoltage() / 10.f * 127);

@@ -44,7 +44,7 @@ struct CV_MIDI : Module {
 	};
 
 	MidiOutput midiOutput;
-	float rateLimiterPhase = 0.f;
+	//float rateLimiterPhase = 0.f;
 
 	CV_MIDI() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
@@ -56,7 +56,7 @@ struct CV_MIDI : Module {
 	}
 
 	void process(const ProcessArgs& args) override {
-		const float rateLimiterPeriod = 0.005f;
+		/*const float rateLimiterPeriod = 0.005f;
 		rateLimiterPhase += args.sampleTime / rateLimiterPeriod;
 		if (rateLimiterPhase >= 1.f) {
 			rateLimiterPhase -= 1.f;
@@ -64,7 +64,7 @@ struct CV_MIDI : Module {
 		else {
 			return;
 		}
-
+riduzione jitter*/
 		for (int c = 0; c < inputs[PITCH_INPUT].getChannels(); c++) {
 			int vel = (int) std::round(inputs[VEL_INPUT].getNormalPolyVoltage(10.f * 100 / 127, c) / 10.f * 127);
 			vel = clamp(vel, 0, 127);
