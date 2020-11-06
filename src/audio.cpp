@@ -25,7 +25,7 @@ std::vector<int> Port::getDriverIds() {
 		drivers.push_back((int) api);
 	}
 	// Add fake Bridge driver
-	drivers.push_back(BRIDGE_DRIVER);
+	//drivers.push_back(BRIDGE_DRIVER);
 	return drivers;
 }
 

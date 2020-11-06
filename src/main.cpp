@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
 	network::init();
 	midi::init();
 	rtmidiInit();
-	bridgeInit();
+	//bridgeInit();
 	keyboard::init();
 	gamepad::init();
 	plugin::init();
@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
 		ui::destroy();
 	}
 	plugin::destroy();
-	bridgeDestroy();
+	//bridgeDestroy();
 	midi::destroy();
 	INFO("Destroying logger");
 	logger::destroy();
