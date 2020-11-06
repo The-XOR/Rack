@@ -1,7 +1,7 @@
 #include <audio.hpp>
 #include <string.hpp>
 #include <math.hpp>
-#include <bridge.hpp>
+//#include <bridge.hpp>
 #include <system.hpp>
 
 
@@ -41,7 +41,7 @@ std::string Port::getDriverName(int driverId) {
 		case RtAudio::WINDOWS_ASIO: return "ASIO";
 		case RtAudio::WINDOWS_DS: return "DirectSound";
 		case RtAudio::RTAUDIO_DUMMY: return "Dummy Audio";
-		case BRIDGE_DRIVER: return "Bridge";
+		//case BRIDGE_DRIVER: return "Bridge";
 		default: return "Unknown";
 	}
 }
@@ -62,18 +62,18 @@ void Port::setDriverId(int driverId) {
 		rtAudio = new RtAudio((RtAudio::Api) driverId);
 		this->driverId = (int) rtAudio->getCurrentApi();
 	}
-	else if (driverId == BRIDGE_DRIVER) {
+/*	else if (driverId == BRIDGE_DRIVER) {
 		this->driverId = BRIDGE_DRIVER;
-	}
+	}*/
 }
 
 int Port::getDeviceCount() {
 	if (rtAudio) {
 		return rtAudio->getDeviceCount();
 	}
-	else if (driverId == BRIDGE_DRIVER) {
+	/*else if (driverId == BRIDGE_DRIVER) {
 		return BRIDGE_NUM_PORTS;
-	}
+	}*/
 	return 0;
 }
 
@@ -109,9 +109,9 @@ int Port::getDeviceChannels(int deviceId) {
 		if (getDeviceInfo(deviceId, &deviceInfo))
 			return std::max((int) deviceInfo.inputChannels, (int) deviceInfo.outputChannels);
 	}
-	else if (driverId == BRIDGE_DRIVER) {
+/*	else if (driverId == BRIDGE_DRIVER) {
 		return std::max(BRIDGE_OUTPUTS, BRIDGE_INPUTS);
-	}
+	}*/
 	return 0;
 }
 
@@ -124,9 +124,9 @@ std::string Port::getDeviceName(int deviceId) {
 		if (getDeviceInfo(deviceId, &deviceInfo))
 			return deviceInfo.name;
 	}
-	else if (driverId == BRIDGE_DRIVER) {
+	/*else if (driverId == BRIDGE_DRIVER) {
 		return string::f("%d", deviceId + 1);
-	}
+	}*/
 	return "";
 }
 
@@ -148,9 +148,9 @@ std::string Port::getDeviceDetail(int deviceId, int offset) {
 			return deviceDetail;
 		}
 	}
-	else if (driverId == BRIDGE_DRIVER) {
+/*	else if (driverId == BRIDGE_DRIVER) {
 		return string::f("Port %d", deviceId + 1);
-	}
+	}*/
 	return "";
 }
 
@@ -288,10 +288,10 @@ void Port::openStream() {
 		this->sampleRate = rtAudio->getStreamSampleRate();
 		onOpenStream();
 	}
-	else if (driverId == BRIDGE_DRIVER) {
+/*	else if (driverId == BRIDGE_DRIVER) {
 		setChannels(BRIDGE_OUTPUTS, BRIDGE_INPUTS);
 		bridgeAudioSubscribe(deviceId, this);
-	}
+	}*/
 }
 
 void Port::closeStream() {
@@ -318,9 +318,9 @@ void Port::closeStream() {
 		}
 		deviceInfo = RtAudio::DeviceInfo();
 	}
-	else if (driverId == BRIDGE_DRIVER) {
+/*	else if (driverId == BRIDGE_DRIVER) {
 		bridgeAudioUnsubscribe(deviceId, this);
-	}
+	}*/
 
 	onCloseStream();
 }

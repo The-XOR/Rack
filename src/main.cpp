@@ -5,7 +5,7 @@
 #include <rtmidi.hpp>
 #include <keyboard.hpp>
 #include <gamepad.hpp>
-#include <bridge.hpp>
+//#include <bridge.hpp>
 #include <settings.hpp>
 #include <engine/Engine.hpp>
 #include <app/common.hpp>
