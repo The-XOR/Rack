@@ -109,14 +109,19 @@ void PortWidget::onDragStart(const event::DragStart& e) {
 		return;
 
 	CableWidget* cw = NULL;
+	NVGcolor force_color ;
+	bool force_colorb = false;
 	if ((APP->window->getMods() & RACK_MOD_MASK) == RACK_MOD_CTRL) {
 		if (type == OUTPUT) {
 			// Keep cable NULL. Will be created below
+			force_color =APP->scene->rack->getTopCable(this)->color;
+			force_colorb = true;
 		}
 		else {
 			CableWidget* topCw = APP->scene->rack->getTopCable(this);
 			if (topCw) {
 				cw = new CableWidget;
+				cw->color = topCw->color;
 				cw->setOutput(topCw->outputPort);
 			}
 		}
@@ -143,6 +148,8 @@ void PortWidget::onDragStart(const event::DragStart& e) {
 	if (!cw) {
 		// Create a new cable
 		cw = new CableWidget;
+		if(force_colorb)
+			cw->color = force_color;
 		if (type == OUTPUT)
 			cw->setOutput(this);
 		else
