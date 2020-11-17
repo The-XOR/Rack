@@ -708,7 +708,7 @@ struct LibraryMenu : ui::Menu {
 
 			UrlItem* manageItem = new UrlItem;
 			manageItem->text = "Manage plugins";
-			manageItem->url = "https://vcvrack.com/plugins.html";
+			manageItem->url = "https://library.vcvrack.com/";
 			addChild(manageItem);
 
 			LogOutItem* logOutItem = new LogOutItem;
