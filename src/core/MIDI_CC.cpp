@@ -4,7 +4,6 @@
 namespace rack {
 namespace core {
 
-
 struct MIDI_CC : Module {
 	enum ParamIds {
 		NUM_PARAMS
@@ -24,9 +23,11 @@ struct MIDI_CC : Module {
 	int8_t values[128];
 	int learningId;
 	int learnedCcs[16];
+	bool fastCCMode;
 	dsp::ExponentialFilter valueFilters[16];
 
 	MIDI_CC() {
+		fastCCMode=false;
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 		for (int i = 0; i < 16; i++) {
 			valueFilters[i].setTau(1 / 30.f);
@@ -59,7 +60,8 @@ struct MIDI_CC : Module {
 			float value = values[cc] / 127.f;
 
 			// Detect behavior from MIDI buttons.
-			if (std::fabs(valueFilters[i].out - value) >= 1.f) {
+			if((std::fabs(valueFilters[i].out - value) >= 1.f) || fastCCMode)
+			{
 				// Jump value
 				valueFilters[i].out = value;
 			}
@@ -113,6 +115,9 @@ struct MIDI_CC : Module {
 		json_object_set_new(rootJ, "values", valuesJ);
 
 		json_object_set_new(rootJ, "midi", midiInput.toJson());
+		json_t *fastcc = json_integer(fastCCMode ? 1 : 0);
+		json_object_set_new(rootJ, "fastCC", fastcc);
+
 		return rootJ;
 	}
 
@@ -139,9 +144,22 @@ struct MIDI_CC : Module {
 		json_t* midiJ = json_object_get(rootJ, "midi");
 		if (midiJ)
 			midiInput.fromJson(midiJ);
+
+		json_t* fastcc = json_object_get(rootJ, "fastCC");
+		if(fastcc)
+			fastCCMode = json_integer_value(fastcc) >0 ;
 	}
+
+	
 };
 
+
+struct CC_FilterSmoothItem : MenuItem {
+	MIDI_CC* module;
+	void onAction(const event::Action& e) override {
+		module->fastCCMode ^= true;
+	}
+};
 
 struct MIDI_CCWidget : ModuleWidget {
 	MIDI_CCWidget(MIDI_CC* module) {
@@ -176,6 +194,15 @@ struct MIDI_CCWidget : ModuleWidget {
 		midiWidget->setMidiPort(module ? &module->midiInput : NULL);
 		midiWidget->setModule(module);
 		addChild(midiWidget);
+	}
+
+	void appendContextMenu(Menu* menu) override {
+		MIDI_CC* module = dynamic_cast<MIDI_CC*>(this->module);
+
+		menu->addChild(new MenuEntry);
+		CC_FilterSmoothItem* smutand = createMenuItem<CC_FilterSmoothItem>("CC Fast mode (do not smooth)", CHECKMARK(module->fastCCMode));
+		smutand->module = module;
+		menu->addChild(smutand);
 	}
 };
 
