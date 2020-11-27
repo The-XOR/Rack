@@ -83,8 +83,11 @@ void Scene::onHoverKey(const event::HoverKey& e) {
 		return;
 
 	if (e.action == GLFW_PRESS || e.action == GLFW_REPEAT) {
-		if (e.key == GLFW_KEY_N && (e.mods & RACK_MOD_MASK) == RACK_MOD_CTRL) {
-			APP->patch->resetDialog();
+		if (e.key == GLFW_KEY_N && (e.mods & RACK_MOD_MASK) == (RACK_MOD_CTRL | GLFW_MOD_SHIFT)) {
+			APP->patch->resetDialog(false);
+			e.consume(this);
+		} else if (e.key == GLFW_KEY_N && (e.mods & RACK_MOD_MASK) == RACK_MOD_CTRL) {
+			APP->patch->resetDialog(true);
 			e.consume(this);
 		}
 		else if (e.key == GLFW_KEY_Q && (e.mods & RACK_MOD_MASK) == RACK_MOD_CTRL) {

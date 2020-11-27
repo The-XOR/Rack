@@ -78,7 +78,13 @@ struct FolderItem : ui::MenuItem {
 
 struct NewItem : ui::MenuItem {
 	void onAction(const event::Action& e) override {
-		APP->patch->resetDialog();
+		APP->patch->resetDialog(true);
+	}
+};
+
+struct NewItem2 : ui::MenuItem {
+	void onAction(const event::Action& e) override {
+		APP->patch->resetDialog(false);
 	}
 };
 
@@ -128,6 +134,11 @@ struct FileButton : MenuButton {
 		newItem->text = "New";
 		newItem->rightText = RACK_MOD_CTRL_NAME "+N";
 		menu->addChild(newItem);
+
+		NewItem2* newItem2 = new NewItem2;
+		newItem2->text = "Empty New";
+		newItem2->rightText = RACK_MOD_CTRL_NAME "+Shift+N";
+		menu->addChild(newItem2);
 
 		OpenItem* openItem = new OpenItem;
 		openItem->text = "Open";

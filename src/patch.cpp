@@ -50,21 +50,24 @@ void PatchManager::init(std::string path) {
 		return;
 	}
 
-	reset();
+	reset(true);
 }
 
-void PatchManager::reset() {
+void PatchManager::reset(bool load_template) {
 	APP->history->clear();
 	APP->scene->rack->clear();
 	APP->scene->rackScroll->reset();
 
 	path = "";
-	if (load(asset::templatePath)) {
-		return;
-	}
+	if(load_template)
+	{
+		if (load(asset::templatePath)) {
+			return;
+		}
 
-	if (load(asset::system("template.vcv"))) {
-		return;
+		if (load(asset::system("template.vcv"))) {
+			return;
+		}
 	}
 }
 
@@ -76,10 +79,11 @@ static bool promptClear(std::string text) {
 	return osdialog_message(OSDIALOG_INFO, OSDIALOG_OK_CANCEL, text.c_str());
 }
 
-void PatchManager::resetDialog() {
+void PatchManager::resetDialog(bool load_template) {
 	if (!promptClear("The current patch is unsaved. Clear it and start a new patch?"))
 		return;
-	reset();
+
+	reset(load_template);
 }
 
 void PatchManager::save(std::string path) {

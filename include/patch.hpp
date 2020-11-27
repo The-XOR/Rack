@@ -16,8 +16,8 @@ struct PatchManager {
 	PatchManager();
 	~PatchManager();
 	void init(std::string path);
-	void reset();
-	void resetDialog();
+	void reset(bool load_template);
+	void resetDialog(bool load_template = true);
 	void save(std::string path);
 	void saveDialog();
 	void saveAsDialog();
