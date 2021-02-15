@@ -88,6 +88,7 @@ struct AudioInterfacePort : audio::Port {
 template <int AUDIO_OUTPUTS, int AUDIO_INPUTS>
 struct AudioInterface : Module {
 	enum ParamIds {
+		OUT_GAIN,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -108,6 +109,7 @@ struct AudioInterface : Module {
 	int lastSampleRate = 0;
 	int lastNumOutputs = -1;
 	int lastNumInputs = -1;
+	float out_gain = 1.0;
 
 	dsp::SampleRateConverter<AUDIO_INPUTS> inputSrc;
 	dsp::SampleRateConverter<AUDIO_OUTPUTS> outputSrc;
@@ -118,6 +120,7 @@ struct AudioInterface : Module {
 
 	AudioInterface() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
+		configParam(OUT_GAIN, 1.0, 10.0, 1.0);
 		port.maxChannels = std::max(AUDIO_OUTPUTS, AUDIO_INPUTS);
 		onSampleRateChange();
 	}
@@ -129,6 +132,7 @@ struct AudioInterface : Module {
 
 		inputSrc.setChannels(port.numInputs);
 		outputSrc.setChannels(port.numOutputs);
+		out_gain = params[OUT_GAIN].getValue();
 
 		// Inputs: audio engine -> rack engine
 		if (port.active && port.numInputs > 0) {
@@ -175,7 +179,7 @@ struct AudioInterface : Module {
 			if (!outputBuffer.full()) {
 				dsp::Frame<AUDIO_OUTPUTS> outputFrame;
 				for (int i = 0; i < AUDIO_OUTPUTS; i++) {
-					outputFrame.samples[i] = inputs[AUDIO_INPUT + i].getVoltageSum() / 10.f;
+					outputFrame.samples[i] = out_gain * inputs[AUDIO_INPUT + i].getVoltageSum() / 10.f;
 				}
 				outputBuffer.push(outputFrame);
 			}
@@ -212,9 +216,9 @@ struct AudioInterface : Module {
 
 		// Turn on light if at least one port is enabled in the nearby pair
 		for (int i = 0; i < AUDIO_INPUTS / 2; i++)
-			lights[INPUT_LIGHT + i].setBrightness(port.active && port.numOutputs >= 2 * i + 1);
+			lights[INPUT_LIGHT + i].setBrightness(port.active && port.numInputs >= 2 * i + 1);
 		for (int i = 0; i < AUDIO_OUTPUTS / 2; i++)
-			lights[OUTPUT_LIGHT + i].setBrightness(port.active && port.numInputs >= 2 * i + 1);
+			lights[OUTPUT_LIGHT + i].setBrightness(port.active && port.numOutputs >= 2 * i + 1);
 	}
 
 	json_t* dataToJson() override {
@@ -350,13 +354,16 @@ struct AudioInterface16Widget : ModuleWidget {
 		addChild(audioWidget);
 	}
 };
+
+typedef AudioInterface<32, 32> TAudioInterface;
+
 struct AudioInterface32Widget : ModuleWidget {
-	typedef AudioInterface<32, 32> TAudioInterface;
 
 	AudioInterface32Widget(TAudioInterface* module) {
 		setModule(module);
 		setPanel(APP->window->loadSvg(asset::system("res/Core/AudioInterface32.svg")));
 
+		addParam(createParam<Rogan1PRed>(Vec(box.size.x - 2 * RACK_GRID_WIDTH-47, 7), module, TAudioInterface::OUT_GAIN));
 		addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
 		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
 		addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
@@ -407,7 +414,7 @@ struct AudioInterface32Widget : ModuleWidget {
 
 Model* modelAudioInterface = createModel<AudioInterface<8, 8>, AudioInterface8Widget>("AudioInterface");
 Model* modelAudioInterface16 = createModel<AudioInterface<16, 16>, AudioInterface16Widget>("AudioInterface16");
-Model* modelAudioInterface32 = createModel<AudioInterface<32, 32>, AudioInterface32Widget>("AudioInterface32");
+Model* modelAudioInterface32 = createModel<TAudioInterface, AudioInterface32Widget>("AudioInterface32");
 
 
 } // namespace core

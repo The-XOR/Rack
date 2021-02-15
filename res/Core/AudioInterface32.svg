@@ -12,10 +12,1451 @@
    viewBox="0 0 189.21952 128.31326"
    version="1.1"
    id="svg56125"
-   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
    sodipodi:docname="AudioInterface32.svg">
   <defs
-     id="defs56119" />
+     id="defs56119">
+    <clipPath
+       id="clip89">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="19"
+         id="rect4864" />
+    </clipPath>
+    <clipPath
+       id="clip90">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.898438,0.128906 h 16.25 v 17.882813 h -16.25 z m 0,0"
+         id="path4861" />
+    </clipPath>
+    <mask
+       id="mask44">
+      <g
+         style="filter:url(#alpha)"
+         id="g4858"
+         transform="matrix(0.26458333,0,0,0.26458333,89.358789,128.57765)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4856" />
+      </g>
+    </mask>
+    <filter
+       id="alpha"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149" />
+    </filter>
+    <clipPath
+       id="clipPath17821">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="19"
+         id="rect17819" />
+    </clipPath>
+    <clipPath
+       id="clipPath17825">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.898438,0.128906 h 16.25 v 17.882813 h -16.25 z m 0,0"
+         id="path17823" />
+    </clipPath>
+    <clipPath
+       id="clip87">
+      <rect
+         y="0"
+         x="0"
+         width="24"
+         height="26"
+         id="rect4848" />
+    </clipPath>
+    <clipPath
+       id="clip88">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.683594,0.921875 h 22.679687 v 24.9375 H 0.683594 Z m 0,0"
+         id="path4845" />
+    </clipPath>
+    <mask
+       id="mask43">
+      <g
+         style="filter:url(#alpha)"
+         id="g4842"
+         transform="matrix(0.26458333,0,0,0.26458333,89.358789,128.57765)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4840" />
+      </g>
+    </mask>
+    <filter
+       id="filter17836"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix17834" />
+    </filter>
+    <clipPath
+       id="clipPath17840">
+      <rect
+         y="0"
+         x="0"
+         width="24"
+         height="26"
+         id="rect17838" />
+    </clipPath>
+    <clipPath
+       id="clipPath17844">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.683594,0.921875 h 22.679687 v 24.9375 H 0.683594 Z m 0,0"
+         id="path17842" />
+    </clipPath>
+    <clipPath
+       id="clip95">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect4912" />
+    </clipPath>
+    <clipPath
+       id="clip96">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.140625,0.140625 H 17.199219 V 17.199219 H 0.140625 Z m 0,0"
+         id="path4909" />
+    </clipPath>
+    <mask
+       id="mask47">
+      <g
+         style="filter:url(#alpha-3)"
+         id="g4906"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.33000201;stroke:none"
+           id="rect4904" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-3"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-6" />
+    </filter>
+    <clipPath
+       id="clipPath18541">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect18539" />
+    </clipPath>
+    <clipPath
+       id="clipPath18545">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.140625,0.140625 H 17.199219 V 17.199219 H 0.140625 Z m 0,0"
+         id="path18543" />
+    </clipPath>
+    <clipPath
+       id="clip93">
+      <rect
+         y="0"
+         x="0"
+         width="22"
+         height="24"
+         id="rect4896" />
+    </clipPath>
+    <clipPath
+       id="clip94">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.0390625,0.0390625 H 21.300781 V 23.421875 H 0.0390625 Z m 0,0"
+         id="path4893" />
+    </clipPath>
+    <mask
+       id="mask46">
+      <g
+         style="filter:url(#alpha-3)"
+         id="g4890"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4888" />
+      </g>
+    </mask>
+    <filter
+       id="filter18556"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix18554" />
+    </filter>
+    <clipPath
+       id="clipPath18560">
+      <rect
+         y="0"
+         x="0"
+         width="22"
+         height="24"
+         id="rect18558" />
+    </clipPath>
+    <clipPath
+       id="clipPath18564">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.0390625,0.0390625 H 21.300781 V 23.421875 H 0.0390625 Z m 0,0"
+         id="path18562" />
+    </clipPath>
+    <clipPath
+       id="clip91">
+      <rect
+         y="0"
+         x="0"
+         width="29"
+         height="32"
+         id="rect4880" />
+    </clipPath>
+    <clipPath
+       id="clip92">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.507812,0.5 H 28.855469 V 31.679688 H 0.507812 Z m 0,0"
+         id="path4877" />
+    </clipPath>
+    <mask
+       id="mask45">
+      <g
+         style="filter:url(#alpha-3)"
+         id="g4874"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4872" />
+      </g>
+    </mask>
+    <filter
+       id="filter18575"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix18573" />
+    </filter>
+    <clipPath
+       id="clipPath18579">
+      <rect
+         y="0"
+         x="0"
+         width="29"
+         height="32"
+         id="rect18577" />
+    </clipPath>
+    <clipPath
+       id="clipPath18583">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.507812,0.5 H 28.855469 V 31.679688 H 0.507812 Z m 0,0"
+         id="path18581" />
+    </clipPath>
+    <clipPath
+       id="clip202">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect5795" />
+    </clipPath>
+    <clipPath
+       id="clip203">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.855469,0.140625 H 17.914062 V 17.199219 H 0.855469 Z m 0,0"
+         id="path5792" />
+    </clipPath>
+    <mask
+       id="mask104">
+      <g
+         style="filter:url(#alpha-7)"
+         id="g5789"
+         transform="matrix(0.26458333,0,0,0.26458333,74.416306,97.613551)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.33000201;stroke:none"
+           id="rect5787" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-7"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-5" />
+    </filter>
+    <clipPath
+       id="clipPath18765">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect18763" />
+    </clipPath>
+    <clipPath
+       id="clipPath18769">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.855469,0.140625 H 17.914062 V 17.199219 H 0.855469 Z m 0,0"
+         id="path18767" />
+    </clipPath>
+    <clipPath
+       id="clip89-9">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="19"
+         id="rect4864-4" />
+    </clipPath>
+    <clipPath
+       id="clip90-8">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.898438,0.128906 h 16.25 v 17.882813 h -16.25 z m 0,0"
+         id="path4861-8" />
+    </clipPath>
+    <mask
+       id="mask44-0">
+      <g
+         style="filter:url(#alpha-0)"
+         id="g4858-8"
+         transform="matrix(0.26458333,0,0,0.26458333,89.358789,128.57765)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4856-1" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-0"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-4" />
+    </filter>
+    <clipPath
+       id="clipPath17821-0">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="19"
+         id="rect17819-9" />
+    </clipPath>
+    <clipPath
+       id="clipPath17825-0">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.898438,0.128906 h 16.25 v 17.882813 h -16.25 z m 0,0"
+         id="path17823-2" />
+    </clipPath>
+    <clipPath
+       id="clip87-4">
+      <rect
+         y="0"
+         x="0"
+         width="24"
+         height="26"
+         id="rect4848-1" />
+    </clipPath>
+    <clipPath
+       id="clip88-1">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.683594,0.921875 h 22.679687 v 24.9375 H 0.683594 Z m 0,0"
+         id="path4845-6" />
+    </clipPath>
+    <mask
+       id="mask43-8">
+      <g
+         style="filter:url(#alpha-0)"
+         id="g4842-7"
+         transform="matrix(0.26458333,0,0,0.26458333,89.358789,128.57765)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4840-8" />
+      </g>
+    </mask>
+    <filter
+       id="filter17836-6"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix17834-9" />
+    </filter>
+    <clipPath
+       id="clipPath17840-5">
+      <rect
+         y="0"
+         x="0"
+         width="24"
+         height="26"
+         id="rect17838-0" />
+    </clipPath>
+    <clipPath
+       id="clipPath17844-6">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.683594,0.921875 h 22.679687 v 24.9375 H 0.683594 Z m 0,0"
+         id="path17842-2" />
+    </clipPath>
+    <clipPath
+       id="clip95-0">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect4912-1" />
+    </clipPath>
+    <clipPath
+       id="clip96-3">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.140625,0.140625 H 17.199219 V 17.199219 H 0.140625 Z m 0,0"
+         id="path4909-5" />
+    </clipPath>
+    <mask
+       id="mask47-4">
+      <g
+         style="filter:url(#alpha-3-4)"
+         id="g4906-3"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.33000201;stroke:none"
+           id="rect4904-5" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-3-4"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-6-4" />
+    </filter>
+    <clipPath
+       id="clipPath18541-3">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect18539-0" />
+    </clipPath>
+    <clipPath
+       id="clipPath18545-8">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.140625,0.140625 H 17.199219 V 17.199219 H 0.140625 Z m 0,0"
+         id="path18543-4" />
+    </clipPath>
+    <clipPath
+       id="clip93-7">
+      <rect
+         y="0"
+         x="0"
+         width="22"
+         height="24"
+         id="rect4896-9" />
+    </clipPath>
+    <clipPath
+       id="clip94-5">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.0390625,0.0390625 H 21.300781 V 23.421875 H 0.0390625 Z m 0,0"
+         id="path4893-6" />
+    </clipPath>
+    <mask
+       id="mask46-1">
+      <g
+         style="filter:url(#alpha-3-4)"
+         id="g4890-8"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4888-4" />
+      </g>
+    </mask>
+    <filter
+       id="filter18556-4"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix18554-6" />
+    </filter>
+    <clipPath
+       id="clipPath18560-5">
+      <rect
+         y="0"
+         x="0"
+         width="22"
+         height="24"
+         id="rect18558-2" />
+    </clipPath>
+    <clipPath
+       id="clipPath18564-4">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.0390625,0.0390625 H 21.300781 V 23.421875 H 0.0390625 Z m 0,0"
+         id="path18562-5" />
+    </clipPath>
+    <clipPath
+       id="clip91-4">
+      <rect
+         y="0"
+         x="0"
+         width="29"
+         height="32"
+         id="rect4880-4" />
+    </clipPath>
+    <clipPath
+       id="clip92-1">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.507812,0.5 H 28.855469 V 31.679688 H 0.507812 Z m 0,0"
+         id="path4877-2" />
+    </clipPath>
+    <mask
+       id="mask45-6">
+      <g
+         style="filter:url(#alpha-3-4)"
+         id="g4874-7"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4872-5" />
+      </g>
+    </mask>
+    <filter
+       id="filter18575-0"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix18573-3" />
+    </filter>
+    <clipPath
+       id="clipPath18579-7">
+      <rect
+         y="0"
+         x="0"
+         width="29"
+         height="32"
+         id="rect18577-4" />
+    </clipPath>
+    <clipPath
+       id="clipPath18583-6">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.507812,0.5 H 28.855469 V 31.679688 H 0.507812 Z m 0,0"
+         id="path18581-8" />
+    </clipPath>
+    <clipPath
+       id="clip202-7">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect5795-3" />
+    </clipPath>
+    <clipPath
+       id="clip203-7">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.855469,0.140625 H 17.914062 V 17.199219 H 0.855469 Z m 0,0"
+         id="path5792-4" />
+    </clipPath>
+    <mask
+       id="mask104-1">
+      <g
+         style="filter:url(#alpha-7-3)"
+         id="g5789-6"
+         transform="matrix(0.26458333,0,0,0.26458333,74.416306,97.613551)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.33000201;stroke:none"
+           id="rect5787-5" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-7-3"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-5-3" />
+    </filter>
+    <clipPath
+       id="clipPath18765-1">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect18763-9" />
+    </clipPath>
+    <clipPath
+       id="clipPath18769-2">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.855469,0.140625 H 17.914062 V 17.199219 H 0.855469 Z m 0,0"
+         id="path18767-8" />
+    </clipPath>
+    <clipPath
+       id="clip89-2">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="19"
+         id="rect4864-1" />
+    </clipPath>
+    <clipPath
+       id="clip90-2">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.898438,0.128906 h 16.25 v 17.882813 h -16.25 z m 0,0"
+         id="path4861-5" />
+    </clipPath>
+    <mask
+       id="mask44-2">
+      <g
+         style="filter:url(#alpha-1)"
+         id="g4858-5"
+         transform="matrix(0.26458333,0,0,0.26458333,89.358789,128.57765)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4856-0" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-1"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-9" />
+    </filter>
+    <clipPath
+       id="clipPath17821-1">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="19"
+         id="rect17819-1" />
+    </clipPath>
+    <clipPath
+       id="clipPath17825-03">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.898438,0.128906 h 16.25 v 17.882813 h -16.25 z m 0,0"
+         id="path17823-8" />
+    </clipPath>
+    <clipPath
+       id="clip87-1">
+      <rect
+         y="0"
+         x="0"
+         width="24"
+         height="26"
+         id="rect4848-14" />
+    </clipPath>
+    <clipPath
+       id="clip88-4">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.683594,0.921875 h 22.679687 v 24.9375 H 0.683594 Z m 0,0"
+         id="path4845-2" />
+    </clipPath>
+    <mask
+       id="mask43-7">
+      <g
+         style="filter:url(#alpha-1)"
+         id="g4842-8"
+         transform="matrix(0.26458333,0,0,0.26458333,89.358789,128.57765)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4840-7" />
+      </g>
+    </mask>
+    <filter
+       id="filter17836-9"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix17834-6" />
+    </filter>
+    <clipPath
+       id="clipPath17840-7">
+      <rect
+         y="0"
+         x="0"
+         width="24"
+         height="26"
+         id="rect17838-9" />
+    </clipPath>
+    <clipPath
+       id="clipPath17844-66">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.683594,0.921875 h 22.679687 v 24.9375 H 0.683594 Z m 0,0"
+         id="path17842-0" />
+    </clipPath>
+    <clipPath
+       id="clip95-7">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect4912-6" />
+    </clipPath>
+    <clipPath
+       id="clip96-9">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.140625,0.140625 H 17.199219 V 17.199219 H 0.140625 Z m 0,0"
+         id="path4909-1" />
+    </clipPath>
+    <mask
+       id="mask47-1">
+      <g
+         style="filter:url(#alpha-3-7)"
+         id="g4906-6"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.33000201;stroke:none"
+           id="rect4904-4" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-3-7"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-6-5" />
+    </filter>
+    <clipPath
+       id="clipPath18541-7">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect18539-4" />
+    </clipPath>
+    <clipPath
+       id="clipPath18545-0">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.140625,0.140625 H 17.199219 V 17.199219 H 0.140625 Z m 0,0"
+         id="path18543-9" />
+    </clipPath>
+    <clipPath
+       id="clip93-73">
+      <rect
+         y="0"
+         x="0"
+         width="22"
+         height="24"
+         id="rect4896-4" />
+    </clipPath>
+    <clipPath
+       id="clip94-1">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.0390625,0.0390625 H 21.300781 V 23.421875 H 0.0390625 Z m 0,0"
+         id="path4893-5" />
+    </clipPath>
+    <mask
+       id="mask46-9">
+      <g
+         style="filter:url(#alpha-3-7)"
+         id="g4890-87"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4888-2" />
+      </g>
+    </mask>
+    <filter
+       id="filter18556-1"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix18554-2" />
+    </filter>
+    <clipPath
+       id="clipPath18560-0">
+      <rect
+         y="0"
+         x="0"
+         width="22"
+         height="24"
+         id="rect18558-7" />
+    </clipPath>
+    <clipPath
+       id="clipPath18564-7">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.0390625,0.0390625 H 21.300781 V 23.421875 H 0.0390625 Z m 0,0"
+         id="path18562-2" />
+    </clipPath>
+    <clipPath
+       id="clip91-8">
+      <rect
+         y="0"
+         x="0"
+         width="29"
+         height="32"
+         id="rect4880-7" />
+    </clipPath>
+    <clipPath
+       id="clip92-3">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.507812,0.5 H 28.855469 V 31.679688 H 0.507812 Z m 0,0"
+         id="path4877-3" />
+    </clipPath>
+    <mask
+       id="mask45-0">
+      <g
+         style="filter:url(#alpha-3-7)"
+         id="g4874-0"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4872-7" />
+      </g>
+    </mask>
+    <filter
+       id="filter18575-8"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix18573-6" />
+    </filter>
+    <clipPath
+       id="clipPath18579-0">
+      <rect
+         y="0"
+         x="0"
+         width="29"
+         height="32"
+         id="rect18577-0" />
+    </clipPath>
+    <clipPath
+       id="clipPath18583-7">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.507812,0.5 H 28.855469 V 31.679688 H 0.507812 Z m 0,0"
+         id="path18581-6" />
+    </clipPath>
+    <clipPath
+       id="clip202-3">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect5795-7" />
+    </clipPath>
+    <clipPath
+       id="clip203-3">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.855469,0.140625 H 17.914062 V 17.199219 H 0.855469 Z m 0,0"
+         id="path5792-0" />
+    </clipPath>
+    <mask
+       id="mask104-5">
+      <g
+         style="filter:url(#alpha-7-5)"
+         id="g5789-7"
+         transform="matrix(0.26458333,0,0,0.26458333,74.416306,97.613551)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.33000201;stroke:none"
+           id="rect5787-7" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-7-5"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-5-8" />
+    </filter>
+    <clipPath
+       id="clipPath18765-5">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect18763-7" />
+    </clipPath>
+    <clipPath
+       id="clipPath18769-3">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.855469,0.140625 H 17.914062 V 17.199219 H 0.855469 Z m 0,0"
+         id="path18767-0" />
+    </clipPath>
+    <clipPath
+       id="clip89-7">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="19"
+         id="rect4864-14" />
+    </clipPath>
+    <clipPath
+       id="clip90-85">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.898438,0.128906 h 16.25 v 17.882813 h -16.25 z m 0,0"
+         id="path4861-2" />
+    </clipPath>
+    <mask
+       id="mask44-6">
+      <g
+         style="filter:url(#alpha-6)"
+         id="g4858-7"
+         transform="matrix(0.26458333,0,0,0.26458333,89.358789,128.57765)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4856-6" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-6"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-43" />
+    </filter>
+    <clipPath
+       id="clipPath17821-6">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="19"
+         id="rect17819-5" />
+    </clipPath>
+    <clipPath
+       id="clipPath17825-6">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.898438,0.128906 h 16.25 v 17.882813 h -16.25 z m 0,0"
+         id="path17823-28" />
+    </clipPath>
+    <clipPath
+       id="clip87-15">
+      <rect
+         y="0"
+         x="0"
+         width="24"
+         height="26"
+         id="rect4848-7" />
+    </clipPath>
+    <clipPath
+       id="clip88-8">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.683594,0.921875 h 22.679687 v 24.9375 H 0.683594 Z m 0,0"
+         id="path4845-1" />
+    </clipPath>
+    <mask
+       id="mask43-0">
+      <g
+         style="filter:url(#alpha-6)"
+         id="g4842-4"
+         transform="matrix(0.26458333,0,0,0.26458333,89.358789,128.57765)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4840-4" />
+      </g>
+    </mask>
+    <filter
+       id="filter17836-4"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix17834-8" />
+    </filter>
+    <clipPath
+       id="clipPath17840-8">
+      <rect
+         y="0"
+         x="0"
+         width="24"
+         height="26"
+         id="rect17838-4" />
+    </clipPath>
+    <clipPath
+       id="clipPath17844-0">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 0.683594,0.921875 h 22.679687 v 24.9375 H 0.683594 Z m 0,0"
+         id="path17842-1" />
+    </clipPath>
+    <clipPath
+       id="clip95-2">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect4912-7" />
+    </clipPath>
+    <clipPath
+       id="clip96-0">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.140625,0.140625 H 17.199219 V 17.199219 H 0.140625 Z m 0,0"
+         id="path4909-6" />
+    </clipPath>
+    <mask
+       id="mask47-3">
+      <g
+         style="filter:url(#alpha-3-9)"
+         id="g4906-37"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.33000201;stroke:none"
+           id="rect4904-9" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-3-9"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-6-3" />
+    </filter>
+    <clipPath
+       id="clipPath18541-9">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect18539-9" />
+    </clipPath>
+    <clipPath
+       id="clipPath18545-82">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.140625,0.140625 H 17.199219 V 17.199219 H 0.140625 Z m 0,0"
+         id="path18543-8" />
+    </clipPath>
+    <clipPath
+       id="clip93-734">
+      <rect
+         y="0"
+         x="0"
+         width="22"
+         height="24"
+         id="rect4896-3" />
+    </clipPath>
+    <clipPath
+       id="clip94-4">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.0390625,0.0390625 H 21.300781 V 23.421875 H 0.0390625 Z m 0,0"
+         id="path4893-7" />
+    </clipPath>
+    <mask
+       id="mask46-3">
+      <g
+         style="filter:url(#alpha-3-9)"
+         id="g4890-6"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4888-3" />
+      </g>
+    </mask>
+    <filter
+       id="filter18556-8"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix18554-67" />
+    </filter>
+    <clipPath
+       id="clipPath18560-7">
+      <rect
+         y="0"
+         x="0"
+         width="22"
+         height="24"
+         id="rect18558-74" />
+    </clipPath>
+    <clipPath
+       id="clipPath18564-5">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.0390625,0.0390625 H 21.300781 V 23.421875 H 0.0390625 Z m 0,0"
+         id="path18562-8" />
+    </clipPath>
+    <clipPath
+       id="clip91-5">
+      <rect
+         y="0"
+         x="0"
+         width="29"
+         height="32"
+         id="rect4880-78" />
+    </clipPath>
+    <clipPath
+       id="clip92-8">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.507812,0.5 H 28.855469 V 31.679688 H 0.507812 Z m 0,0"
+         id="path4877-38" />
+    </clipPath>
+    <mask
+       id="mask45-8">
+      <g
+         style="filter:url(#alpha-3-9)"
+         id="g4874-5"
+         transform="matrix(0.26458333,0,0,0.26458333,88.611154,119.19859)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.14999402;stroke:none"
+           id="rect4872-9" />
+      </g>
+    </mask>
+    <filter
+       id="filter18575-3"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix18573-4" />
+    </filter>
+    <clipPath
+       id="clipPath18579-6">
+      <rect
+         y="0"
+         x="0"
+         width="29"
+         height="32"
+         id="rect18577-9" />
+    </clipPath>
+    <clipPath
+       id="clipPath18583-0">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.507812,0.5 H 28.855469 V 31.679688 H 0.507812 Z m 0,0"
+         id="path18581-89" />
+    </clipPath>
+    <clipPath
+       id="clip202-70">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect5795-4" />
+    </clipPath>
+    <clipPath
+       id="clip203-32">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.855469,0.140625 H 17.914062 V 17.199219 H 0.855469 Z m 0,0"
+         id="path5792-5" />
+    </clipPath>
+    <mask
+       id="mask104-4">
+      <g
+         style="filter:url(#alpha-7-39)"
+         id="g5789-75"
+         transform="matrix(0.26458333,0,0,0.26458333,74.416306,97.613551)">
+        <rect
+           x="0"
+           y="0"
+           width="3052.8701"
+           height="3351.5"
+           style="fill:#000000;fill-opacity:0.33000201;stroke:none"
+           id="rect5787-0" />
+      </g>
+    </mask>
+    <filter
+       id="alpha-7-39"
+       filterUnits="objectBoundingBox"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feColorMatrix
+         type="matrix"
+         in="SourceGraphic"
+         values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"
+         id="feColorMatrix4149-5-2" />
+    </filter>
+    <clipPath
+       id="clipPath18765-7">
+      <rect
+         y="0"
+         x="0"
+         width="18"
+         height="18"
+         id="rect18763-78" />
+    </clipPath>
+    <clipPath
+       id="clipPath18769-6">
+      <path
+         inkscape:connector-curvature="0"
+         d="M 0.855469,0.140625 H 17.914062 V 17.199219 H 0.855469 Z m 0,0"
+         id="path18767-5" />
+    </clipPath>
+  </defs>
   <sodipodi:namedview
      units="in"
      inkscape:guide-bbox="true"
@@ -30,16 +1471,16 @@
      inkscape:cx="478.80815"
      inkscape:cy="306.35116"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="layer3"
      showgrid="false"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
      inkscape:window-width="1920"
-     inkscape:window-height="1120"
-     inkscape:window-x="-11"
-     inkscape:window-y="-11"
+     inkscape:window-height="1027"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
      inkscape:window-maximized="1"
      inkscape:document-rotation="0">
     <sodipodi:guide
@@ -67,7 +1508,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -76,7 +1517,8 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(36.165036,-84.7704)"
-     style="display:inline">
+     style="display:inline"
+     sodipodi:insensitive="true">
     <path
        inkscape:connector-curvature="0"
        id="path37755"
@@ -1009,13 +2451,38 @@
            id="tspan582"
            sodipodi:role="line">32</tspan></text>
     </g>
+    <text
+       id="text1077"
+       y="49.333561"
+       x="94.657127"
+       style="font-weight:bold;font-size:3.52778px;line-height:0;font-family:Candara;-inkscape-font-specification:'Candara Bold';text-align:center;text-anchor:middle;fill:#000000;stroke:#ffffff;stroke-width:0.188"
+       xml:space="preserve"><tspan
+         style="font-size:3.52778px;stroke-width:0.188"
+         y="49.333561"
+         x="94.657127"
+         id="tspan1075"
+         sodipodi:role="line">TO DEVICE</tspan></text>
+    <text
+       id="text1077-3"
+       y="8.6645012"
+       x="157.47444"
+       style="font-weight:bold;font-size:3.52777px;line-height:0;font-family:Candara;-inkscape-font-specification:'Candara Bold';text-align:center;text-anchor:middle;display:inline;fill:#000000;stroke:#ffffff;stroke-width:0.188"
+       xml:space="preserve"><tspan
+         style="font-size:3.52777px;stroke-width:0.188"
+         y="8.6645012"
+         x="157.47444"
+         id="tspan1075-9"
+         sodipodi:role="line">GAIN</tspan><tspan
+         style="font-size:3.52777px;stroke-width:0.188"
+         y="8.6645012"
+         x="157.47444"
+         sodipodi:role="line"
+         id="tspan1097" /></text>
   </g>
   <g
-     sodipodi:insensitive="true"
      inkscape:label="text copy"
      id="g870"
      inkscape:groupmode="layer"
-     transform="translate(0,-0.18740737)"
      style="display:inline">
     <g
        style="font-weight:bold;font-size:6.35px;line-height:0;font-family:Candara;-inkscape-font-specification:'Candara Bold';text-align:center;text-anchor:middle;fill:#000000;stroke:#ffffff;stroke-width:0.188"
@@ -1923,6 +3390,55 @@
          id="path1605"
          style="fill:#ffffff;stroke-width:0.188"
          d="m 183.7337,105.48384 -0.0362,0.36862 h -1.31086 l 0.0362,-0.34623 q 0.72691,-0.4048 0.72691,-0.81304 0,-0.33934 -0.47025,-0.33934 -0.12575,0 -0.267,0.0241 l 0.0327,-0.3204 q 0.14986,-0.0379 0.42547,-0.0379 0.3514,0 0.53571,0.14986 0.18431,0.14986 0.18431,0.40824 0,0.32384 -0.24116,0.55638 -0.23943,0.23255 -0.50815,0.35312 v 0.0224 q 0.38069,0 0.89228,-0.0258 z" />
+    </g>
+    <g
+       aria-label="GAIN
+"
+       id="text1103"
+       style="font-weight:bold;font-size:3.52777px;line-height:0;font-family:Candara;-inkscape-font-specification:'Candara Bold';text-align:center;text-anchor:middle;display:inline;fill:#000000;stroke:#ffffff;stroke-width:0.188">
+      <path
+         d="m 155.62529,8.6059347 q -0.40996,0.1050752 -0.68557,0.1050752 -0.59256,0 -0.89917,-0.3238383 -0.30489,-0.3255608 -0.30489,-0.7889251 0,-0.48748 0.33245,-0.8474917 0.33417,-0.3600116 0.92501,-0.3600116 0.27733,0 0.4892,0.049954 l -0.0568,0.4065204 q -0.27044,-0.070624 -0.48576,-0.070624 -0.36346,0 -0.5426,0.2239307 -0.17915,0.2222082 -0.17915,0.5443239 0,0.3290059 0.19982,0.5736072 0.20153,0.2446012 0.55466,0.2446012 0.0982,0 0.22737,-0.02067 -0.0258,-0.1912024 -0.0258,-0.3755146 0,-0.1860348 -0.0362,-0.4185782 h 0.48748 q -0.0138,0.2652718 -0.0138,0.5339886 0,0.1946475 0.0138,0.5236534 z"
+         style="font-size:3.52777px;stroke-width:0.188"
+         id="path1108" />
+      <path
+         d="m 157.99896,8.6645012 h -0.55122 q 0,-0.1136879 -0.15675,-0.6442315 h -0.79581 q -0.16192,0.5219309 -0.16192,0.6442315 h -0.51849 q 0,-0.067179 0.40135,-1.1024281 0.40308,-1.035249 0.40308,-1.1403242 h 0.65112 q 0,0.098185 0.36346,1.1248213 0.36518,1.0249136 0.36518,1.117931 z m -0.79582,-0.9732374 q -0.29455,-0.8888326 -0.29455,-0.9611795 h -0.0276 q 0,0.067179 -0.3049,0.9611795 z"
+         style="font-size:3.52777px;stroke-width:0.188"
+         id="path1110" />
+      <path
+         d="m 158.75343,8.6645012 h -0.48748 q 0.0224,-0.5339886 0.0224,-1.1730525 0,-0.6287285 -0.0224,-1.0696998 h 0.48748 q -0.0224,0.4340811 -0.0224,1.0696998 0,0.6493991 0.0224,1.1730525 z"
+         style="font-size:3.52777px;stroke-width:0.188"
+         id="path1112" />
+      <path
+         d="m 161.09781,8.6645012 h -0.42547 q 0,-0.070624 -0.4737,-0.7458615 -0.49609,-0.7114107 -0.56499,-0.9732374 h -0.0276 q 0.0431,0.3772371 0.0431,0.6821274 0,0.4254684 0.0241,1.0369715 h -0.42375 q 0.0258,-0.5339886 0.0258,-1.1730525 0,-0.6287285 -0.0258,-1.0696998 h 0.5116 q 0,0.091295 0.42547,0.7286361 0.45303,0.6769598 0.52021,0.918116 h 0.0258 q -0.0413,-0.3841273 -0.0413,-0.6890176 0,-0.4668094 -0.0241,-0.9577345 h 0.43063 q -0.0241,0.4271909 -0.0241,1.0696998 0,0.6476766 0.0241,1.1730525 z"
+         style="font-size:3.52777px;stroke-width:0.188"
+         id="path1114" />
+    </g>
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer3"
+     inkscape:label="Widgets"
+     style="display:none">
+    <g
+       inkscape:label="Layer 1"
+       id="layer1-9"
+       transform="translate(113.80907,-83.836597)"
+       style="display:inline">
+      <path
+         inkscape:connector-curvature="0"
+         id="path7721"
+         d="m 60.117655,91.197483 c 0,3.059246 -2.479075,5.538336 -5.538328,5.538336 -3.057878,0 -5.538329,-2.47909 -5.538329,-5.538336 0,-3.057867 2.480451,-5.538336 5.538329,-5.538336 3.059253,0 5.538328,2.480469 5.538328,5.538336"
+         style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.352778" />
+      <path
+         inkscape:connector-curvature="0"
+         id="path7725"
+         d="m 58.530155,91.196795 c 0,2.182812 -1.768016,3.950836 -3.950828,3.950836 -2.181437,0 -3.950829,-1.768024 -3.950829,-3.950836 0,-2.181433 1.769392,-3.949457 3.950829,-3.949457 2.182812,0 3.950828,1.768024 3.950828,3.949457"
+         style="fill:#da4061;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.352778" />
+      <path
+         inkscape:connector-curvature="0"
+         id="path7727"
+         d="m 55.284882,85.708758 c -0.231493,-0.02893 -0.465772,-0.04961 -0.705555,-0.04961 -0.239783,0 -0.474028,0.02067 -0.705556,0.04961 v 1.701878 h 1.411111 z m 0,0"
+         style="fill:#da4061;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.352778" />
     </g>
   </g>
 </svg>
