@@ -13,7 +13,7 @@ struct MIDI_Gate : Module {
 		NUM_INPUTS
 	};
 	enum OutputIds {
-		ENUMS(TRIG_OUTPUT, 16),
+		ENUMS(GATE_OUTPUTS, 16),
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -22,15 +22,24 @@ struct MIDI_Gate : Module {
 
 	midi::InputQueue midiInput;
 
-	bool gates[16];
-	float gateTimes[16];
-	uint8_t velocities[16];
-	int learningId = -1;
-	uint8_t learnedNotes[16] = {};
-	bool velocityMode = false;
+	/** [cell][channel] */
+	bool gates[16][16];
+	/** [cell][channel] */
+	float gateTimes[16][16];
+	/** [cell][channel] */
+	uint8_t velocities[16][16];
+	/** Cell ID in learn mode, or -1 if none. */
+	int learningId;
+	/** [cell] */
+	int8_t learnedNotes[16];
+	bool velocityMode;
+	bool mpeMode;
 
 	MIDI_Gate() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
+		for (int i = 0; i < 16; i++)
+			configOutput(GATE_OUTPUTS + i, string::f("Gate %d", i + 1));
+
 		onReset();
 	}
 
@@ -43,79 +52,99 @@ struct MIDI_Gate : Module {
 		learningId = -1;
 		panic();
 		midiInput.reset();
+		velocityMode = false;
+		mpeMode = false;
 	}
 
 	void panic() {
 		for (int i = 0; i < 16; i++) {
-			gates[i] = false;
-			gateTimes[i] = 0.f;
+			for (int c = 0; c < 16; c++) {
+				gates[i][c] = false;
+				gateTimes[i][c] = 0.f;
+			}
 		}
 	}
 
 	void process(const ProcessArgs& args) override {
 		midi::Message msg;
-		while (midiInput.shift(&msg)) {
+		while (midiInput.tryPop(&msg, args.frame)) {
 			processMessage(msg);
 		}
 
+		int channels = mpeMode ? 16 : 1;
+
 		for (int i = 0; i < 16; i++) {
-			if (gateTimes[i] > 0.f) {
-				outputs[TRIG_OUTPUT + i].setVoltage(velocityMode ? rescale(velocities[i], 0, 127, 0.f, 10.f) : 10.f);
-				// If the gate is off, wait 1 ms before turning the pulse off.
-				// This avoids drum controllers sending a pulse with 0 ms duration.
-				if (!gates[i]) {
-					gateTimes[i] -= args.sampleTime;
+			outputs[GATE_OUTPUTS + i].setChannels(channels);
+			for (int c = 0; c < channels; c++) {
+				// Make sure all pulses last longer than 1ms
+				if (gates[i][c] || gateTimes[i][c] > 0.f) {
+					float velocity = velocityMode ? (velocities[i][c] / 127.f) : 1.f;
+					outputs[GATE_OUTPUTS + i].setVoltage(velocity * 10.f, c);
+					gateTimes[i][c] -= args.sampleTime;
 				}
-			}
-			else {
-				outputs[TRIG_OUTPUT + i].setVoltage(0.f);
+				else {
+					outputs[GATE_OUTPUTS + i].setVoltage(0.f, c);
+				}
 			}
 		}
 	}
 
-	void processMessage(midi::Message msg) {
+	void processMessage(const midi::Message& msg) {
 		switch (msg.getStatus()) {
 			// note off
 			case 0x8: {
-				releaseNote(msg.getNote());
+				releaseNote(msg.getChannel(), msg.getNote());
 			} break;
 			// note on
 			case 0x9: {
 				if (msg.getValue() > 0) {
-					pressNote(msg.getNote(), msg.getValue());
+					pressNote(msg.getChannel(), msg.getNote(), msg.getValue());
 				}
 				else {
 					// Many stupid keyboards send a "note on" command with 0 velocity to mean "note release"
-					releaseNote(msg.getNote());
+					releaseNote(msg.getChannel(), msg.getNote());
 				}
 			} break;
 			default: break;
 		}
 	}
 
-	void pressNote(uint8_t note, uint8_t vel) {
+	void pressNote(uint8_t channel, uint8_t note, uint8_t vel) {
+		int c = mpeMode ? channel : 0;
 		// Learn
 		if (learningId >= 0) {
-			learnedNotes[learningId] = note;
+			setLearnedNote(learningId, note);
 			learningId = -1;
 		}
 		// Find id
 		for (int i = 0; i < 16; i++) {
 			if (learnedNotes[i] == note) {
-				gates[i] = true;
-				gateTimes[i] = 1e-3f;
-				velocities[i] = vel;
+				gates[i][c] = true;
+				gateTimes[i][c] = 1e-3f;
+				velocities[i][c] = vel;
 			}
 		}
 	}
 
-	void releaseNote(uint8_t note) {
+	void releaseNote(uint8_t channel, uint8_t note) {
+		int c = mpeMode ? channel : 0;
 		// Find id
 		for (int i = 0; i < 16; i++) {
 			if (learnedNotes[i] == note) {
-				gates[i] = false;
+				gates[i][c] = false;
 			}
 		}
+	}
+
+	void setLearnedNote(int id, int8_t note) {
+		// Unset IDs of similar note
+		if (note >= 0) {
+			for (int id = 0; id < 16; id++) {
+				if (learnedNotes[id] == note)
+					learnedNotes[id] = -1;
+			}
+		}
+		learnedNotes[id] = note;
 	}
 
 	json_t* dataToJson() override {
@@ -131,6 +160,8 @@ struct MIDI_Gate : Module {
 		json_object_set_new(rootJ, "velocity", json_boolean(velocityMode));
 
 		json_object_set_new(rootJ, "midi", midiInput.toJson());
+
+		json_object_set_new(rootJ, "mpeMode", json_boolean(mpeMode));
 		return rootJ;
 	}
 
@@ -140,7 +171,7 @@ struct MIDI_Gate : Module {
 			for (int i = 0; i < 16; i++) {
 				json_t* noteJ = json_array_get(notesJ, i);
 				if (noteJ)
-					learnedNotes[i] = json_integer_value(noteJ);
+					setLearnedNote(i, json_integer_value(noteJ));
 			}
 		}
 
@@ -151,22 +182,10 @@ struct MIDI_Gate : Module {
 		json_t* midiJ = json_object_get(rootJ, "midi");
 		if (midiJ)
 			midiInput.fromJson(midiJ);
-	}
-};
 
-
-struct MIDI_GateVelocityItem : MenuItem {
-	MIDI_Gate* module;
-	void onAction(const event::Action& e) override {
-		module->velocityMode ^= true;
-	}
-};
-
-
-struct MIDI_GatePanicItem : MenuItem {
-	MIDI_Gate* module;
-	void onAction(const event::Action& e) override {
-		module->panic();
+		json_t* mpeModeJ = json_object_get(rootJ, "mpeMode");
+		if (mpeModeJ)
+			mpeMode = json_boolean_value(mpeModeJ);
 	}
 };
 
@@ -174,50 +193,50 @@ struct MIDI_GatePanicItem : MenuItem {
 struct MIDI_GateWidget : ModuleWidget {
 	MIDI_GateWidget(MIDI_Gate* module) {
 		setModule(module);
-		setPanel(APP->window->loadSvg(asset::system("res/Core/MIDI-Gate.svg")));
+		setPanel(createPanel(asset::system("res/Core/MIDI_Gate.svg"), asset::system("res/Core/MIDI_Gate-dark.svg")));
 
-		addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
-		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
-		addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+		addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, 0)));
+		addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
+		addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+		addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(3.894335, 73.344704)), module, MIDI_Gate::TRIG_OUTPUT + 0));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(15.494659, 73.344704)), module, MIDI_Gate::TRIG_OUTPUT + 1));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(27.094982, 73.344704)), module, MIDI_Gate::TRIG_OUTPUT + 2));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(38.693932, 73.344704)), module, MIDI_Gate::TRIG_OUTPUT + 3));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(3.8943355, 84.945023)), module, MIDI_Gate::TRIG_OUTPUT + 4));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(15.49466, 84.945023)), module, MIDI_Gate::TRIG_OUTPUT + 5));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(27.094982, 84.945023)), module, MIDI_Gate::TRIG_OUTPUT + 6));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(38.693932, 84.945023)), module, MIDI_Gate::TRIG_OUTPUT + 7));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(3.8943343, 96.543976)), module, MIDI_Gate::TRIG_OUTPUT + 8));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(15.494659, 96.543976)), module, MIDI_Gate::TRIG_OUTPUT + 9));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(27.09498, 96.543976)), module, MIDI_Gate::TRIG_OUTPUT + 10));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(38.693932, 96.543976)), module, MIDI_Gate::TRIG_OUTPUT + 11));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(3.894335, 108.14429)), module, MIDI_Gate::TRIG_OUTPUT + 12));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(15.49466, 108.14429)), module, MIDI_Gate::TRIG_OUTPUT + 13));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(27.09498, 108.14429)), module, MIDI_Gate::TRIG_OUTPUT + 14));
-		addOutput(createOutput<PJ301MPort>(mm2px(Vec(38.693932, 108.14429)), module, MIDI_Gate::TRIG_OUTPUT + 15));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(8.189, 78.431)), module, MIDI_Gate::GATE_OUTPUTS + 0));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(19.739, 78.431)), module, MIDI_Gate::GATE_OUTPUTS + 1));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(31.289, 78.431)), module, MIDI_Gate::GATE_OUTPUTS + 2));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(42.838, 78.431)), module, MIDI_Gate::GATE_OUTPUTS + 3));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(8.189, 89.946)), module, MIDI_Gate::GATE_OUTPUTS + 4));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(19.739, 89.946)), module, MIDI_Gate::GATE_OUTPUTS + 5));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(31.289, 89.946)), module, MIDI_Gate::GATE_OUTPUTS + 6));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(42.838, 89.946)), module, MIDI_Gate::GATE_OUTPUTS + 7));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(8.189, 101.466)), module, MIDI_Gate::GATE_OUTPUTS + 8));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(19.739, 101.466)), module, MIDI_Gate::GATE_OUTPUTS + 9));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(31.289, 101.466)), module, MIDI_Gate::GATE_OUTPUTS + 10));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(42.838, 101.466)), module, MIDI_Gate::GATE_OUTPUTS + 11));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(8.189, 112.998)), module, MIDI_Gate::GATE_OUTPUTS + 12));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(19.739, 112.984)), module, MIDI_Gate::GATE_OUTPUTS + 13));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(31.289, 112.984)), module, MIDI_Gate::GATE_OUTPUTS + 14));
+		addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(42.838, 112.984)), module, MIDI_Gate::GATE_OUTPUTS + 15));
 
-		typedef Grid16MidiWidget<NoteChoice<MIDI_Gate>> TMidiWidget;
-		TMidiWidget* midiWidget = createWidget<TMidiWidget>(mm2px(Vec(3.399621, 14.837339)));
-		midiWidget->box.size = mm2px(Vec(44, 54.667));
-		midiWidget->setMidiPort(module ? &module->midiInput : NULL);
-		midiWidget->setModule(module);
-		addChild(midiWidget);
+		typedef Grid16MidiDisplay<NoteChoice<MIDI_Gate>> TMidiDisplay;
+		TMidiDisplay* display = createWidget<TMidiDisplay>(mm2px(Vec(0.0, 13.039)));
+		display->box.size = mm2px(Vec(50.8, 55.88));
+		display->setMidiPort(module ? &module->midiInput : NULL);
+		display->setModule(module);
+		addChild(display);
 	}
 
 	void appendContextMenu(Menu* menu) override {
 		MIDI_Gate* module = dynamic_cast<MIDI_Gate*>(this->module);
 
-		menu->addChild(new MenuEntry);
-		MIDI_GateVelocityItem* velocityItem = createMenuItem<MIDI_GateVelocityItem>("Velocity mode", CHECKMARK(module->velocityMode));
-		velocityItem->module = module;
-		menu->addChild(velocityItem);
+		menu->addChild(new MenuSeparator);
 
-		MIDI_GatePanicItem* panicItem = new MIDI_GatePanicItem;
-		panicItem->text = "Panic";
-		panicItem->module = module;
-		menu->addChild(panicItem);
+		menu->addChild(createBoolPtrMenuItem("Velocity mode", "", &module->velocityMode));
+
+		menu->addChild(createBoolPtrMenuItem("MPE mode", "", &module->mpeMode));
+
+		menu->addChild(createMenuItem("Panic", "",
+			[=]() {module->panic();}
+		));
 	}
 };
 

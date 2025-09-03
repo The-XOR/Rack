@@ -1,4 +1,5 @@
 #include <app/SvgScrew.hpp>
+#include <settings.hpp>
 
 
 namespace rack {
@@ -14,10 +15,15 @@ SvgScrew::SvgScrew() {
 }
 
 
-void SvgScrew::setSvg(std::shared_ptr<Svg> svg) {
+void SvgScrew::setSvg(std::shared_ptr<window::Svg> svg) {
+	if (sw->svg == svg)
+		return;
+
 	sw->setSvg(svg);
 	fb->box.size = sw->box.size;
 	box.size = sw->box.size;
+
+	fb->setDirty();
 }
 
 

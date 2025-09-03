@@ -17,7 +17,19 @@ SvgButton::SvgButton() {
 	fb->addChild(sw);
 }
 
-void SvgButton::addFrame(std::shared_ptr<Svg> svg) {
+
+void SvgButton::onButton(const ButtonEvent& e) {
+	OpaqueWidget::onButton(e);
+
+	// Dispatch ActionEvent on left click
+	if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_LEFT) {
+		ActionEvent eAction;
+		onAction(eAction);
+	}
+}
+
+
+void SvgButton::addFrame(std::shared_ptr<window::Svg> svg) {
 	frames.push_back(svg);
 	// If this is our first frame, automatically set SVG and size
 	if (!sw->svg) {
@@ -27,31 +39,36 @@ void SvgButton::addFrame(std::shared_ptr<Svg> svg) {
 		// Move shadow downward by 10%
 		shadow->box.size = sw->box.size;
 		shadow->box.pos = math::Vec(0, sw->box.size.y * 0.10);
+		fb->setDirty();
 	}
 }
 
-void SvgButton::onDragStart(const event::DragStart& e) {
+
+void SvgButton::onDragStart(const DragStartEvent& e) {
 	if (e.button != GLFW_MOUSE_BUTTON_LEFT)
 		return;
 
 	if (frames.size() >= 2) {
 		sw->setSvg(frames[1]);
-		fb->dirty = true;
+		fb->setDirty();
 	}
 }
 
-void SvgButton::onDragEnd(const event::DragEnd& e) {
+
+void SvgButton::onDragEnd(const DragEndEvent& e) {
 	if (frames.size() >= 1) {
 		sw->setSvg(frames[0]);
-		fb->dirty = true;
+		fb->setDirty();
 	}
 }
 
-void SvgButton::onDragDrop(const event::DragDrop& e) {
-	if (e.origin == this) {
-		event::Action eAction;
-		onAction(eAction);
-	}
+
+void SvgButton::onDragDrop(const DragDropEvent& e) {
+	// Don't dispatch ActionEvent on DragDrop because it's already called on mouse down.
+	// if (e.origin == this) {
+	// 	ActionEvent eAction;
+	// 	onAction(eAction);
+	// }
 }
 
 

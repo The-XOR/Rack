@@ -6,6 +6,14 @@ namespace rack {
 namespace color {
 
 
+bool isEqual(NVGcolor a, NVGcolor b) {
+	for (int i = 0; i < 4; i++) {
+		if (a.rgba[i] != b.rgba[i])
+			return false;
+	}
+	return true;
+}
+
 NVGcolor clamp(NVGcolor a) {
 	for (int i = 0; i < 4; i++)
 		a.rgba[i] = math::clamp(a.rgba[i], 0.f, 1.f);
@@ -36,7 +44,13 @@ NVGcolor mult(NVGcolor a, float x) {
 	return a;
 }
 
-/** Screen blending with alpha compositing */
+NVGcolor lerp(NVGcolor a, NVGcolor b, float t) {
+	NVGcolor c;
+	for (int i = 0; i < 4; i++)
+		c.rgba[i] = a.rgba[i] * (1 - t) + b.rgba[i] * t;
+	return c;
+}
+
 NVGcolor screen(NVGcolor a, NVGcolor b) {
 	if (a.a == 0.f)
 		return b;

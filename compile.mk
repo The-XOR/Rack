@@ -6,34 +6,44 @@ include $(RACK_DIR)/arch.mk
 
 OBJCOPY ?= objcopy
 STRIP ?= strip
+INSTALL_NAME_TOOL ?= install_name_tool
+OTOOL ?= otool
 
 # Generate dependency files alongside the object files
 FLAGS += -MMD -MP
 # Debugger symbols. These are removed with `strip`.
 FLAGS += -g
 # Optimization
-FLAGS += -O3 -march=nocona -funsafe-math-optimizations
+FLAGS += -O3 -funsafe-math-optimizations -fno-omit-frame-pointer
 # Warnings
 FLAGS += -Wall -Wextra -Wno-unused-parameter
 # C++ standard
 CXXFLAGS += -std=c++11
 
+# Define compiler/linker target if cross-compiling
+ifdef CROSS_COMPILE
+	FLAGS += --target=$(MACHINE)
+endif
+
 # Architecture-independent flags
+ifdef ARCH_X64
+	FLAGS += -march=nehalem
+endif
+ifdef ARCH_ARM64
+	FLAGS += -march=armv8-a+fp+simd
+endif
+
 ifdef ARCH_LIN
-	FLAGS += -DARCH_LIN
 	CXXFLAGS += -Wsuggest-override
 endif
 ifdef ARCH_MAC
-	FLAGS += -DARCH_MAC
 	CXXFLAGS += -stdlib=libc++
-	LDFLAGS += -stdlib=libc++
-	MAC_SDK_FLAGS = -mmacosx-version-min=10.7
+	MAC_SDK_FLAGS := -mmacosx-version-min=10.9
 	FLAGS += $(MAC_SDK_FLAGS)
-	LDFLAGS += $(MAC_SDK_FLAGS)
 endif
 ifdef ARCH_WIN
-	FLAGS += -DARCH_WIN
 	FLAGS += -D_USE_MATH_DEFINES
+	FLAGS += -municode
 	CXXFLAGS += -Wsuggest-override
 endif
 
@@ -56,7 +66,7 @@ DEPENDENCIES := $(patsubst %, build/%.d, $(SOURCES))
 # Final targets
 
 $(TARGET): $(OBJECTS)
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 -include $(DEPENDENCIES)
 
@@ -76,15 +86,13 @@ build/%.m.o: %.m
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+build/%.mm.o: %.mm
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
 build/%.bin.o: %
 	@mkdir -p $(@D)
-ifdef ARCH_LIN
-	$(OBJCOPY) -I binary -O elf64-x86-64 -B i386:x86-64 --rename-section .data=.rodata,alloc,load,readonly,data,contents $< $@
-endif
-ifdef ARCH_WIN
-	$(OBJCOPY) -I binary -O pe-x86-64 -B i386:x86-64 --rename-section .data=.rodata,alloc,load,readonly,data,contents $< $@
-endif
-ifdef ARCH_MAC
-	@# Apple makes this needlessly complicated, so just generate a C file with an array.
-	xxd -i $< | $(CC) $(MAC_SDK_FLAGS) -c -o $@ -xc -
-endif
+	xxd -i $< | $(CC) $(CFLAGS) -c -o $@ -xc -
+
+build/%.html: %.md
+	markdown $< > $@

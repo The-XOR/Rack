@@ -1,33 +1,34 @@
-#include <plugin.hpp>
-#include <system.hpp>
-#include <network.hpp>
-#include <asset.hpp>
-#include <string.hpp>
-#include <app.hpp>
-#include <app/common.hpp>
-#include <plugin/callbacks.hpp>
-#include <settings.hpp>
+#include <arch.hpp>
+
+#include <thread>
+#include <map>
+#include <stdexcept>
+#include <tuple>
+#include <regex>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/param.h> // for MAXPATHLEN
 #include <fcntl.h>
-#include <thread>
-#include <map>
-#include <stdexcept>
-
-#include <jansson.h>
-
 #if defined ARCH_WIN
 	#include <windows.h>
 	#include <direct.h>
-	#define mkdir(_dir, _perms) _mkdir(_dir)
 #else
-	#include <dlfcn.h>
+	#include <dlfcn.h> // for dlopen
 #endif
 #include <dirent.h>
+
 #include <osdialog.h>
+#include <jansson.h>
+
+#include <plugin.hpp>
+#include <system.hpp>
+#include <asset.hpp>
+#include <string.hpp>
+#include <context.hpp>
+#include <plugin/callbacks.hpp>
+#include <settings.hpp>
 
 
 namespace rack {
@@ -43,51 +44,82 @@ namespace plugin {
 // private API
 ////////////////////
 
-typedef void (*InitCallback)(Plugin*);
 
-static InitCallback loadLibrary(Plugin* plugin) {
-	// Load plugin library
-	std::string libraryFilename;
-#if defined ARCH_LIN
-	libraryFilename = plugin->path + "/" + "plugin.so";
-#elif defined ARCH_WIN
-	libraryFilename = plugin->path + "/" + "plugin.dll";
-#elif ARCH_MAC
-	libraryFilename = plugin->path + "/" + "plugin.dylib";
+static void* getSymbol(void* handle, const char* name) {
+	if (!handle)
+		return NULL;
+
+#if defined ARCH_WIN
+	return (void*) GetProcAddress((HMODULE) handle, name);
+#else
+	return dlsym(handle, name);
 #endif
+}
 
-	// Check file existence
-	if (!system::isFile(libraryFilename)) {
-		throw UserException(string::f("Library %s does not exist", libraryFilename.c_str()));
-	}
-
-	// Load dynamic/shared library
+/** Returns library handle */
+static void* loadLibrary(std::string libraryPath) {
 #if defined ARCH_WIN
 	SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
-	HINSTANCE handle = LoadLibrary(libraryFilename.c_str());
+	std::wstring libraryFilenameW = string::UTF8toUTF16(libraryPath);
+	HINSTANCE handle = LoadLibraryW(libraryFilenameW.c_str());
 	SetErrorMode(0);
 	if (!handle) {
 		int error = GetLastError();
-		throw UserException(string::f("Failed to load library %s: code %d", libraryFilename.c_str(), error));
+		throw Exception("Failed to load library %s: code %d", libraryPath.c_str(), error);
 	}
 #else
-	void* handle = dlopen(libraryFilename.c_str(), RTLD_NOW | RTLD_LOCAL);
-	if (!handle) {
-		throw UserException(string::f("Failed to load library %s: %s", libraryFilename.c_str(), dlerror()));
+	// Since Rack 2, plugins on Linux/Mac link to the absolute path /tmp/Rack2/libRack.<ext>
+	// Create a symlink at /tmp/Rack2 to the system dir containting libRack.
+	std::string systemDir = system::getAbsolute(asset::systemDir);
+	std::string linkPath = "/tmp/Rack2";
+	if (!settings::devMode) {
+		// Clean up old symbolic link in case a different edition was run earlier
+		system::remove(linkPath);
+		system::createSymbolicLink(systemDir, linkPath);
 	}
+	// Load library with dlopen
+	void* handle = NULL;
+	#if defined ARCH_LIN
+	handle = dlopen(libraryPath.c_str(), RTLD_NOW | RTLD_LOCAL);
+	#elif defined ARCH_MAC
+	handle = dlopen(libraryPath.c_str(), RTLD_NOW | RTLD_LOCAL);
+	#endif
+	if (!settings::devMode) {
+		system::remove(linkPath);
+	}
+	if (!handle)
+		throw Exception("Failed to load library %s: %s", libraryPath.c_str(), dlerror());
 #endif
-	plugin->handle = handle;
+	return handle;
+}
+
+typedef void (*InitCallback)(Plugin*);
+
+static InitCallback loadPluginCallback(Plugin* plugin) {
+	// Load plugin library
+	std::string libraryExt;
+#if defined ARCH_LIN
+	libraryExt = "so";
+#elif defined ARCH_WIN
+	libraryExt = "dll";
+#elif defined ARCH_MAC
+	libraryExt = "dylib";
+#endif
+
+	std::string libraryFilename = "plugin." + libraryExt;
+	std::string libraryPath = system::join(plugin->path, libraryFilename);
+
+	// Check file existence
+	if (!system::isFile(libraryPath))
+		throw Exception("Plugin binary not found at %s", libraryPath.c_str());
+
+	// Load dynamic/shared library
+	plugin->handle = loadLibrary(libraryPath);
 
 	// Get plugin's init() function
-	InitCallback initCallback;
-#if defined ARCH_WIN
-	initCallback = (InitCallback) GetProcAddress(handle, "init");
-#else
-	initCallback = (InitCallback) dlsym(handle, "init");
-#endif
-	if (!initCallback) {
-		throw UserException(string::f("Failed to read init() symbol in %s", libraryFilename.c_str()));
-	}
+	InitCallback initCallback = (InitCallback) getSymbol(plugin->handle, "init");
+	if (!initCallback)
+		throw Exception("Failed to read init() symbol in %s", libraryPath.c_str());
 
 	return initCallback;
 }
@@ -95,9 +127,19 @@ static InitCallback loadLibrary(Plugin* plugin) {
 
 /** If path is blank, loads Core */
 static Plugin* loadPlugin(std::string path) {
+	if (path == "")
+		INFO("Loading Core plugin");
+	else
+		INFO("Loading plugin from %s", path.c_str());
+
 	Plugin* plugin = new Plugin;
+
 	try {
-		plugin->path = path;
+		if (path == "")
+			plugin->version = APP_VERSION;
+
+		// Set plugin path
+		plugin->path = (path == "") ? asset::systemDir : path;
 
 		// Get modified timestamp
 		if (path != "") {
@@ -114,23 +156,25 @@ static Plugin* loadPlugin(std::string path) {
 		}
 
 		// Load plugin.json
-		std::string manifestFilename = (path == "") ? asset::system("Core.json") : (path + "/plugin.json");
-		FILE* file = fopen(manifestFilename.c_str(), "r");
-		if (!file) {
-			throw UserException(string::f("Manifest file %s does not exist", manifestFilename.c_str()));
-		}
-		DEFER({
-			fclose(file);
-		});
+		std::string manifestFilename = (path == "") ? asset::system("Core.json") : system::join(path, "plugin.json");
+		FILE* file = std::fopen(manifestFilename.c_str(), "r");
+		if (!file)
+			throw Exception("Manifest file %s does not exist", manifestFilename.c_str());
+		DEFER({std::fclose(file);});
 
 		json_error_t error;
 		json_t* rootJ = json_loadf(file, 0, &error);
-		if (!rootJ) {
-			throw UserException(string::f("JSON parsing error at %s %d:%d %s", manifestFilename.c_str(), error.line, error.column, error.text));
-		}
-		DEFER({
-			json_decref(rootJ);
-		});
+		if (!rootJ)
+			throw Exception("JSON parsing error at %s %d:%d %s", manifestFilename.c_str(), error.line, error.column, error.text);
+		DEFER({json_decref(rootJ);});
+
+		// Load manifest
+		plugin->fromJson(rootJ);
+
+		// Reject plugin if slug already exists
+		Plugin* existingPlugin = getPlugin(plugin->slug);
+		if (existingPlugin)
+			throw Exception("Plugin %s is already loaded, not attempting to load it again", plugin->slug.c_str());
 
 		// Call init callback
 		InitCallback initCallback;
@@ -138,29 +182,34 @@ static Plugin* loadPlugin(std::string path) {
 			initCallback = core::init;
 		}
 		else {
-			initCallback = loadLibrary(plugin);
+			initCallback = loadPluginCallback(plugin);
 		}
 		initCallback(plugin);
 
-		// Load manifest
-		plugin->fromJson(rootJ);
+		// Load modules manifest
+		json_t* modulesJ = json_object_get(rootJ, "modules");
+		plugin->modulesFromJson(modulesJ);
 
-		// Reject plugin if slug already exists
-		Plugin* oldPlugin = getPlugin(plugin->slug);
-		if (oldPlugin) {
-			throw UserException(string::f("Plugin %s is already loaded, not attempting to load it again", plugin->slug.c_str()));
+		// Call settingsFromJson() if exists
+		// Returns NULL for Core.
+		auto settingsFromJson = (decltype(&::settingsFromJson)) getSymbol(plugin->handle, "settingsFromJson");
+		if (settingsFromJson) {
+			json_t* settingsJ = json_object_get(settings::pluginSettingsJ, plugin->slug.c_str());
+			if (settingsJ)
+				settingsFromJson(settingsJ);
 		}
-
-		INFO("Loaded plugin %s v%s from %s", plugin->slug.c_str(), plugin->version.c_str(), path.c_str());
-		plugins.push_back(plugin);
 	}
-	catch (UserException& e) {
+	catch (Exception& e) {
 		WARN("Could not load plugin %s: %s", path.c_str(), e.what());
 		delete plugin;
-		plugin = NULL;
+		return NULL;
 	}
+
+	INFO("Loaded plugin %s %s", plugin->slug.c_str(), plugin->version.c_str());
+	plugins.push_back(plugin);
 	return plugin;
 }
+
 
 static void loadPlugins(std::string path) {
 	for (std::string pluginPath : system::getEntries(path)) {
@@ -172,27 +221,41 @@ static void loadPlugins(std::string path) {
 	}
 }
 
+
 static void extractPackages(std::string path) {
 	std::string message;
 
 	for (std::string packagePath : system::getEntries(path)) {
-		if (string::filenameExtension(string::filename(packagePath)) != "zip")
+		if (!system::isFile(packagePath))
 			continue;
-		INFO("Extracting package %s", packagePath.c_str());
+		if (system::getExtension(packagePath) != ".vcvplugin")
+			continue;
+
 		// Extract package
-		if (system::unzipToFolder(packagePath, path)) {
-			WARN("Package %s failed to extract", packagePath.c_str());
-			message += string::f("Could not extract package %s\n", packagePath.c_str());
+		INFO("Extracting package %s", packagePath.c_str());
+		try {
+			system::unarchiveToDirectory(packagePath, path);
+		}
+		catch (Exception& e) {
+			WARN("Plugin package %s failed to extract: %s", packagePath.c_str(), e.what());
+			message += string::f("Could not extract plugin package %s\n", packagePath);
 			continue;
 		}
 		// Remove package
-		if (remove(packagePath.c_str())) {
-			WARN("Could not delete file %s: error %d", packagePath.c_str(), errno);
-		}
+		system::remove(packagePath.c_str());
 	}
 	if (!message.empty()) {
 		osdialog_message(OSDIALOG_WARNING, OSDIALOG_OK, message.c_str());
 	}
+}
+
+static std::string getFundamentalPackagePath() {
+	for (const std::string& path : system::getEntries(asset::systemDir)) {
+		std::string filename = system::getFilename(path);
+		if (string::startsWith(filename, "Fundamental-") && string::endsWith(filename, APP_OS + "-" + APP_CPU + ".vcvplugin"))
+			return path;
+	}
+	return "";
 }
 
 ////////////////////
@@ -200,269 +263,234 @@ static void extractPackages(std::string path) {
 ////////////////////
 
 void init() {
+	// Don't re-initialize
+	assert(plugins.empty());
+
 	// Load Core
 	loadPlugin("");
 
 	// Get user plugins directory
-	mkdir(asset::pluginsPath.c_str(), 0755);
+	if (settings::devMode) {
+		pluginsPath = asset::user("plugins");
+	}
+	else {
+		pluginsPath = asset::user("plugins-" + APP_OS + "-" + APP_CPU);
+	}
+
+	// In Rack <2.4.0, plugins dir was "plugins" regardless of arch.
+	// Rename old dir if running x64.
+#if defined ARCH_X64
+	std::string oldPluginsPath = asset::user("plugins");
+	if (system::isDirectory(oldPluginsPath)) {
+		system::rename(oldPluginsPath, pluginsPath);
+	}
+#endif
+
+	system::createDirectory(pluginsPath);
+
+	// Don't load plugins if safe mode is enabled
+	if (settings::safeMode)
+		return;
 
 	// Extract packages and load plugins
-	extractPackages(asset::pluginsPath);
-	loadPlugins(asset::pluginsPath);
+	extractPackages(pluginsPath);
+	loadPlugins(pluginsPath);
 
 	// If Fundamental wasn't loaded, copy the bundled Fundamental package and load it
-#if defined ARCH_MAC
-	std::string fundamentalSrc = asset::system("Fundamental.txt");
-#else
-	std::string fundamentalSrc = asset::system("Fundamental.zip");
-#endif
-	std::string fundamentalDir = asset::pluginsPath + "/Fundamental";
-	if (!settings::devMode && !getPlugin("Fundamental") && system::isFile(fundamentalSrc)) {
-		INFO("Extracting bundled Fundamental package");
-		system::unzipToFolder(fundamentalSrc.c_str(), asset::pluginsPath.c_str());
-		loadPlugin(fundamentalDir);
-	}
-
-	// Sync in a detached thread
-	if (!settings::devMode) {
-		std::thread t([] {
-			queryUpdates();
-		});
-		t.detach();
+	if (!settings::devMode && !getPlugin("Fundamental")) {
+		std::string fundamentalPackage = getFundamentalPackagePath();
+		std::string fundamentalDir = system::join(pluginsPath, "Fundamental");
+		if (fundamentalPackage != "" && system::isFile(fundamentalPackage)) {
+			INFO("Extracting bundled Fundamental package");
+			try {
+				system::unarchiveToDirectory(fundamentalPackage.c_str(), pluginsPath.c_str());
+				loadPlugin(fundamentalDir);
+			}
+			catch (Exception& e) {
+				WARN("Could not extract Fundamental package: %s", e.what());
+			}
+		}
 	}
 }
+
+
+static void destroyPlugin(Plugin* plugin) {
+	void* handle = plugin->handle;
+
+	// Call destroy() if defined in the plugin library
+	typedef void (*DestroyCallback)();
+	DestroyCallback destroyCallback = NULL;
+	if (handle) {
+		destroyCallback = (DestroyCallback) getSymbol(handle, "destroy");
+	}
+	if (destroyCallback) {
+		try {
+			destroyCallback();
+		}
+		catch (Exception& e) {
+			WARN("Could not destroy plugin %s", plugin->slug.c_str());
+		}
+	}
+
+	// We must delete the Plugin instance *before* freeing the library, because the vtables of Model subclasses are defined in the library, which are needed in the Plugin destructor.
+	delete plugin;
+
+	// Free library handle
+	if (handle) {
+#if defined ARCH_WIN
+		FreeLibrary((HINSTANCE) handle);
+#else
+		dlclose(handle);
+#endif
+	}
+}
+
 
 void destroy() {
+	while (!plugins.empty()) {
+		Plugin* plugin = plugins.back();
+		INFO("Destroying plugin %s", plugin->name.c_str());
+		destroyPlugin(plugin);
+		plugins.pop_back();
+	}
+	assert(plugins.empty());
+}
+
+
+void settingsMergeJson(json_t* rootJ) {
 	for (Plugin* plugin : plugins) {
-		// Free library handle
-#if defined ARCH_WIN
-		if (plugin->handle)
-			FreeLibrary((HINSTANCE) plugin->handle);
-#else
-		if (plugin->handle)
-			dlclose(plugin->handle);
-#endif
-
-		// For some reason this segfaults.
-		// It might be best to let them leak anyway, because "crash on exit" issues would occur with badly-written plugins.
-		// delete plugin;
-	}
-	plugins.clear();
-}
-
-void logIn(const std::string& email, const std::string& password) {
-	loginStatus = "Logging in...";
-	json_t* reqJ = json_object();
-	json_object_set(reqJ, "email", json_string(email.c_str()));
-	json_object_set(reqJ, "password", json_string(password.c_str()));
-	std::string url = app::API_URL + "/token";
-	json_t* resJ = network::requestJson(network::METHOD_POST, url, reqJ);
-	json_decref(reqJ);
-
-	if (!resJ) {
-		loginStatus = "No response from server";
-		return;
-	}
-	DEFER({
-		json_decref(resJ);
-	});
-
-	json_t* errorJ = json_object_get(resJ, "error");
-	if (errorJ) {
-		const char* errorStr = json_string_value(errorJ);
-		loginStatus = errorStr;
-		return;
-	}
-
-	json_t* tokenJ = json_object_get(resJ, "token");
-	if (!tokenJ) {
-		loginStatus = "No token in response";
-		return;
-	}
-
-	const char* tokenStr = json_string_value(tokenJ);
-	settings::token = tokenStr;
-	loginStatus = "";
-	queryUpdates();
-}
-
-void logOut() {
-	settings::token = "";
-	updates.clear();
-}
-
-bool isLoggedIn() {
-	return settings::token != "";
-}
-
-void queryUpdates() {
-	if (settings::token.empty())
-		return;
-
-	updates.clear();
-	updateStatus = "Querying for updates...";
-
-	// Get user's plugins list
-	std::string pluginsUrl = app::API_URL + "/plugins";
-	json_t* pluginsReqJ = json_object();
-	json_object_set(pluginsReqJ, "token", json_string(settings::token.c_str()));
-	json_t* pluginsResJ = network::requestJson(network::METHOD_GET, pluginsUrl, pluginsReqJ);
-	json_decref(pluginsReqJ);
-	if (!pluginsResJ) {
-		WARN("Request for user's plugins failed");
-		updateStatus = "Could not query updates";
-		return;
-	}
-	DEFER({
-		json_decref(pluginsResJ);
-	});
-
-	json_t* errorJ = json_object_get(pluginsResJ, "error");
-	if (errorJ) {
-		WARN("Request for user's plugins returned an error: %s", json_string_value(errorJ));
-		updateStatus = "Could not query updates";
-		return;
-	}
-
-	// Get library manifests
-	std::string manifestsUrl = app::API_URL + "/library/manifests";
-	json_t* manifestsReq = json_object();
-	json_object_set(manifestsReq, "version", json_string(app::API_VERSION.c_str()));
-	json_t* manifestsResJ = network::requestJson(network::METHOD_GET, manifestsUrl, manifestsReq);
-	json_decref(manifestsReq);
-	if (!manifestsResJ) {
-		WARN("Request for library manifests failed");
-		updateStatus = "Could not query updates";
-		return;
-	}
-	DEFER({
-		json_decref(manifestsResJ);
-	});
-
-	json_t* manifestsJ = json_object_get(manifestsResJ, "manifests");
-	json_t* pluginsJ = json_object_get(pluginsResJ, "plugins");
-
-	size_t pluginIndex;
-	json_t* pluginJ;
-	json_array_foreach(pluginsJ, pluginIndex, pluginJ) {
-		Update update;
-		// Get plugin manifest
-		update.pluginSlug = json_string_value(pluginJ);
-		json_t* manifestJ = json_object_get(manifestsJ, update.pluginSlug.c_str());
-		if (!manifestJ) {
-			WARN("VCV account has plugin %s but no manifest was found", update.pluginSlug.c_str());
-			continue;
+		auto settingsToJson = (decltype(&::settingsToJson)) getSymbol(plugin->handle, "settingsToJson");
+		if (settingsToJson) {
+			json_t* settingsJ = settingsToJson();
+			json_object_set_new(rootJ, plugin->slug.c_str(), settingsJ);
 		}
-
-		// Get plugin name
-		json_t* nameJ = json_object_get(manifestJ, "name");
-		if (nameJ)
-			update.pluginName = json_string_value(nameJ);
-
-		// Get version
-		json_t* versionJ = json_object_get(manifestJ, "version");
-		if (!versionJ) {
-			WARN("Plugin %s has no version in manifest", update.pluginSlug.c_str());
-			continue;
+		else {
+			json_object_del(rootJ, plugin->slug.c_str());
 		}
-		update.version = json_string_value(versionJ);
-
-		// Check if update is needed
-		Plugin* p = getPlugin(update.pluginSlug);
-		if (p && p->version == update.version)
-			continue;
-
-		// Check status
-		json_t* statusJ = json_object_get(manifestJ, "status");
-		if (!statusJ)
-			continue;
-		std::string status = json_string_value(statusJ);
-		if (status != "available")
-			continue;
-
-		// Get changelog URL
-		json_t* changelogUrlJ = json_object_get(manifestJ, "changelogUrl");
-		if (changelogUrlJ) {
-			update.changelogUrl = json_string_value(changelogUrlJ);
-		}
-
-		updates.push_back(update);
-	}
-
-	updateStatus = "";
-}
-
-bool hasUpdates() {
-	for (Update& update : updates) {
-		if (update.progress < 1.f)
-			return true;
-	}
-	return false;
-}
-
-static bool isSyncingUpdate = false;
-static bool isSyncingUpdates = false;
-
-void syncUpdate(Update* update) {
-	isSyncingUpdate = true;
-	DEFER({
-		isSyncingUpdate = false;
-	});
-
-	std::string downloadUrl = app::API_URL + "/download";
-	downloadUrl += "?token=" + network::encodeUrl(settings::token);
-	downloadUrl += "&slug=" + network::encodeUrl(update->pluginSlug);
-	downloadUrl += "&version=" + network::encodeUrl(update->version);
-	downloadUrl += "&arch=" + network::encodeUrl(app::APP_ARCH);
-
-	INFO("Downloading plugin %s %s %s", update->pluginSlug.c_str(), update->version.c_str(), app::APP_ARCH.c_str());
-
-	// Download zip
-	std::string pluginDest = asset::pluginsPath + "/" + update->pluginSlug + ".zip";
-	if (!network::requestDownload(downloadUrl, pluginDest, &update->progress)) {
-		WARN("Plugin %s download was unsuccessful", update->pluginSlug.c_str());
-		return;
 	}
 }
 
-void syncUpdates() {
-	isSyncingUpdates = true;
-	DEFER({
-		isSyncingUpdates = false;
-	});
 
-	if (settings::token.empty())
-		return;
+/** Given slug => fallback slug.
+Supports bidirectional fallbacks.
+To request fallback slugs to be added to this list, contact VCV support.
+*/
+static const std::map<std::string, std::string> pluginSlugFallbacks = {
+	{"VultModulesFree", "VultModules"},
+	{"VultModules", "VultModulesFree"},
+	{"AudibleInstrumentsPreview", "AudibleInstruments"},
+	{"SequelSequencers", "DanielDavies"},
+	{"DelexanderVol1", "DelexandraVol1"},
+	{"VCV-Pro", "Fundamental"},
+	// {"", ""},
+};
 
-	for (Update& update : updates) {
-		if (update.progress < 1.f)
-			syncUpdate(&update);
-	}
-	restartRequested = true;
-}
-
-bool isSyncing() {
-	return isSyncingUpdate || isSyncingUpdates;
-}
 
 Plugin* getPlugin(const std::string& pluginSlug) {
-	for (Plugin* plugin : plugins) {
-		if (plugin->slug == pluginSlug) {
-			return plugin;
-		}
-	}
+	if (pluginSlug.empty())
+		return NULL;
+
+	auto it = std::find_if(plugins.begin(), plugins.end(), [=](Plugin* p) {
+		return p->slug == pluginSlug;
+	});
+	if (it != plugins.end())
+		return *it;
 	return NULL;
 }
 
+
+Plugin* getPluginFallback(const std::string& pluginSlug) {
+	if (pluginSlug.empty())
+		return NULL;
+
+	// Attempt example plugin
+	Plugin* p = getPlugin(pluginSlug);
+	if (p)
+		return p;
+
+	// Attempt fallback plugin slug
+	auto it = pluginSlugFallbacks.find(pluginSlug);
+	if (it != pluginSlugFallbacks.end())
+		return getPlugin(it->second);
+
+	return NULL;
+}
+
+
+/** Given slug => fallback slug.
+Correctly handles bidirectional fallbacks.
+To request fallback slugs to be added to this list, open a GitHub issue.
+*/
+using PluginModuleSlug = std::tuple<std::string, std::string>;
+static const std::map<PluginModuleSlug, PluginModuleSlug> moduleSlugFallbacks = {
+	{{"MindMeld-ShapeMasterPro", "ShapeMasterPro"}, {"MindMeldModular", "ShapeMaster"}},
+	{{"MindMeldModular", "ShapeMaster"}, {"MindMeld-ShapeMasterPro", "ShapeMasterPro"}},
+	// {{"", ""}, {"", ""}},
+};
+
+
 Model* getModel(const std::string& pluginSlug, const std::string& modelSlug) {
-	Plugin* plugin = getPlugin(pluginSlug);
-	if (!plugin)
+	if (pluginSlug.empty() || modelSlug.empty())
 		return NULL;
-	Model* model = plugin->getModel(modelSlug);
+
+	Plugin* p = getPlugin(pluginSlug);
+	if (!p)
+		return NULL;
+
+	return p->getModel(modelSlug);
+}
+
+
+Model* getModelFallback(const std::string& pluginSlug, const std::string& modelSlug) {
+	if (pluginSlug.empty() || modelSlug.empty())
+		return NULL;
+
+	// Attempt exact plugin and model
+	Model* m = getModel(pluginSlug, modelSlug);
+	if (m)
+		return m;
+
+	// Attempt fallback module
+	auto it = moduleSlugFallbacks.find(std::make_tuple(pluginSlug, modelSlug));
+	if (it != moduleSlugFallbacks.end()) {
+		Model* m = getModel(std::get<0>(it->second), std::get<1>(it->second));
+		if (m)
+			return m;
+	}
+
+	// Attempt fallback plugin
+	auto it2 = pluginSlugFallbacks.find(pluginSlug);
+	if (it2 != pluginSlugFallbacks.end()) {
+		Model* m = getModel(it2->second, modelSlug);
+		if (m)
+			return m;
+	}
+
+	return NULL;
+}
+
+
+Model* modelFromJson(json_t* moduleJ) {
+	// Get slugs
+	json_t* pluginSlugJ = json_object_get(moduleJ, "plugin");
+	if (!pluginSlugJ)
+		throw Exception("\"plugin\" property not found in module JSON");
+	std::string pluginSlug = json_string_value(pluginSlugJ);
+	pluginSlug = normalizeSlug(pluginSlug);
+
+	json_t* modelSlugJ = json_object_get(moduleJ, "model");
+	if (!modelSlugJ)
+		throw Exception("\"model\" property not found in module JSON");
+	std::string modelSlug = json_string_value(modelSlugJ);
+	modelSlug = normalizeSlug(modelSlug);
+
+	// Get Model
+	Model* model = getModelFallback(pluginSlug, modelSlug);
 	if (!model)
-		return NULL;
+		throw Exception("Could not find module %s/%s", pluginSlug.c_str(), modelSlug.c_str());
 	return model;
 }
+
 
 bool isSlugValid(const std::string& slug) {
 	for (char c : slug) {
@@ -471,6 +499,7 @@ bool isSlugValid(const std::string& slug) {
 	}
 	return true;
 }
+
 
 std::string normalizeSlug(const std::string& slug) {
 	std::string s;
@@ -483,12 +512,8 @@ std::string normalizeSlug(const std::string& slug) {
 }
 
 
+std::string pluginsPath;
 std::vector<Plugin*> plugins;
-
-std::string loginStatus;
-std::vector<Update> updates;
-std::string updateStatus;
-bool restartRequested = false;
 
 
 } // namespace plugin

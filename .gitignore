@@ -1,21 +1,29 @@
+# Ignore all dotfiles except git dotfiles
+.*
+!.git*
+
+# Binaries and build targets
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.res
+*.d
+*.dSYM
+*.vcvplugin
+/build
 /Rack
-/Rack.exe
-/Rack.res
-/libRack.a
 /dep
+/dist
+
+# Rack folders
 /plugins
 /disabledplugins
-/build
-/dist
 /patches
-.DS_Store
-/autosave.vcv
+/presets
+/licenses
+/autosave
 /settings.json
 /screenshots
-.vs/
-
-*.vcv
-favorites-*json
-libgcc_s_seh-1.dll
-libstdc++-6.dll
-libwinpthread-1.dll
+/selections

@@ -1,103 +1,136 @@
-#include <app/RackWidget.hpp>
-#include <widget/TransparentWidget.hpp>
-#include <app/RackRail.hpp>
-#include <app/Scene.hpp>
-#include <app/ModuleBrowser.hpp>
-#include <settings.hpp>
-#include <plugin.hpp>
-#include <engine/Engine.hpp>
-#include <app.hpp>
-#include <asset.hpp>
-#include <patch.hpp>
-#include <osdialog.h>
 #include <map>
 #include <algorithm>
 #include <queue>
+#include <functional>
+
+#include <osdialog.h>
+
+#include <app/RackWidget.hpp>
+#include <widget/TransparentWidget.hpp>
+#include <app/RailWidget.hpp>
+#include <app/Scene.hpp>
+#include <settings.hpp>
+#include <plugin.hpp>
+#include <engine/Engine.hpp>
+#include <context.hpp>
+#include <system.hpp>
+#include <asset.hpp>
+#include <patch.hpp>
+#include <helpers.hpp>
 
 
 namespace rack {
 namespace app {
 
 
-static ModuleWidget* moduleFromJson(json_t* moduleJ) {
-	// Get slugs
-	json_t* pluginSlugJ = json_object_get(moduleJ, "plugin");
-	if (!pluginSlugJ)
-		return NULL;
-	std::string pluginSlug = json_string_value(pluginSlugJ);
-	pluginSlug = plugin::normalizeSlug(pluginSlug);
+struct RackWidget::Internal {
+	RailWidget* rail = NULL;
+	widget::Widget* moduleContainer = NULL;
+	widget::Widget* plugContainer = NULL;
+	widget::Widget* cableContainer = NULL;
+	int nextCableColorId = 0;
+	/** The last mouse position in the RackWidget */
+	math::Vec mousePos;
 
-	json_t* modelSlugJ = json_object_get(moduleJ, "model");
-	if (!modelSlugJ)
-		return NULL;
-	std::string modelSlug = json_string_value(modelSlugJ);
-	modelSlug = plugin::normalizeSlug(modelSlug);
+	bool selecting = false;
+	math::Vec selectionStart;
+	math::Vec selectionEnd;
+	std::set<ModuleWidget*> selectedModules;
+	std::map<widget::Widget*, math::Vec> moduleOldPositions;
+};
 
-	// Get Model
-	plugin::Model* model = plugin::getModel(pluginSlug, modelSlug);
-	if (!model)
-		return NULL;
+
+/** Creates a new Module and ModuleWidget */
+static ModuleWidget* moduleWidgetFromJson(json_t* moduleJ) {
+	plugin::Model* model = plugin::modelFromJson(moduleJ);
+	assert(model);
+	INFO("Creating module %s", model->getFullName().c_str());
+	engine::Module* module = model->createModule();
+	assert(module);
+	module->fromJson(moduleJ);
 
 	// Create ModuleWidget
-	ModuleWidget* moduleWidget = model->createModuleWidget();
+	INFO("Creating module widget %s", model->getFullName().c_str());
+	ModuleWidget* moduleWidget = module->model->createModuleWidget(module);
 	assert(moduleWidget);
-	moduleWidget->fromJson(moduleJ);
 	return moduleWidget;
 }
 
 
 struct ModuleContainer : widget::Widget {
 	void draw(const DrawArgs& args) override {
-		// Draw shadows behind each ModuleWidget first, so the shadow doesn't overlap the front of other ModuleWidgets.
-		for (widget::Widget* child : children) {
-			ModuleWidget* w = dynamic_cast<ModuleWidget*>(child);
-			assert(w);
-
-			nvgSave(args.vg);
-			nvgTranslate(args.vg, child->box.pos.x, child->box.pos.y);
-			w->drawShadow(args);
-			nvgRestore(args.vg);
-		}
+		// Draw ModuleWidget shadows
+		Widget::drawLayer(args, -1);
 
 		Widget::draw(args);
+	}
+
+	void drawLayer(const DrawArgs& args, int layer) override {
+		// Draw lights after translucent rectangle
+		if (layer == 1) {
+			Widget::drawLayer(args, 1);
+		}
+	}
+};
+
+
+/** Children PlugWidgets are owned by CableWidgets. */
+struct PlugContainer : widget::TransparentWidget {
+	void draw(const DrawArgs& args) override {
+		// Don't draw on layer 0
+	}
+
+	void drawLayer(const DrawArgs& args, int layer) override {
+		if (layer == 2) {
+			// Draw Plugs
+			Widget::draw(args);
+
+			// Draw plug lights
+			nvgSave(args.vg);
+			nvgGlobalTint(args.vg, color::WHITE);
+			Widget::drawLayer(args, 1);
+			nvgRestore(args.vg);
+		}
 	}
 };
 
 
 struct CableContainer : widget::TransparentWidget {
 	void draw(const DrawArgs& args) override {
-		// Draw cable plugs
-		for (widget::Widget* w : children) {
-			CableWidget* cw = dynamic_cast<CableWidget*>(w);
-			assert(cw);
-			cw->drawPlugs(args);
-		}
+		// Don't draw on layer 0
+	}
 
-		Widget::draw(args);
+	void drawLayer(const DrawArgs& args, int layer) override {
+		if (layer == 3) {
+			// Draw cable shadows
+			Widget::drawLayer(args, -1);
+
+			// Draw cables
+			Widget::draw(args);
+		}
 	}
 };
 
 
 RackWidget::RackWidget() {
-	railFb = new widget::FramebufferWidget;
-	railFb->box.size = math::Vec();
-	railFb->oversample = 1.0;
-	{
-		RackRail* rail = new RackRail;
-		rail->box.size = math::Vec();
-		railFb->addChild(rail);
-	}
-	addChild(railFb);
+	internal = new Internal;
 
-	moduleContainer = new ModuleContainer;
-	addChild(moduleContainer);
+	internal->rail = new RailWidget;
+	addChild(internal->rail);
 
-	cableContainer = new CableContainer;
-	addChild(cableContainer);
+	internal->moduleContainer = new ModuleContainer;
+	addChild(internal->moduleContainer);
+
+	internal->plugContainer = new PlugContainer;
+	addChild(internal->plugContainer);
+
+	internal->cableContainer = new CableContainer;
+	addChild(internal->cableContainer);
 }
 
 RackWidget::~RackWidget() {
 	clear();
+	delete internal;
 }
 
 void RackWidget::step() {
@@ -105,125 +138,130 @@ void RackWidget::step() {
 }
 
 void RackWidget::draw(const DrawArgs& args) {
-	// Resize and reposition the RackRail to align on the grid.
-	math::Rect railBox;
-	railBox.pos = args.clipBox.pos.div(BUS_BOARD_GRID_SIZE).floor().mult(BUS_BOARD_GRID_SIZE);
-	railBox.size = args.clipBox.size.div(BUS_BOARD_GRID_SIZE).ceil().plus(math::Vec(1, 1)).mult(BUS_BOARD_GRID_SIZE);
-	if (!railFb->box.size.isEqual(railBox.size)) {
-		railFb->dirty = true;
-	}
-	railFb->box = railBox;
+	float b = settings::rackBrightness;
 
-	RackRail* rail = railFb->getFirstDescendantOfType<RackRail>();
-	rail->box.size = railFb->box.size;
-
+	// Draw rack rails and modules
 	Widget::draw(args);
+
+	// Draw translucent dark rectangle
+	if (b < 1.f) {
+		// Get zoom level
+		float t[6];
+		nvgCurrentTransform(args.vg, t);
+		float zoom = t[3];
+		float radius = 300.0 / zoom;
+		float brightness = 0.2f;
+		// Draw mouse spotlight
+		nvgBeginPath(args.vg);
+		nvgRect(args.vg, 0.0, 0.0, VEC_ARGS(box.size));
+		nvgFillPaint(args.vg, nvgRadialGradient(args.vg, VEC_ARGS(internal->mousePos), 0.0, radius, nvgRGBAf(0, 0, 0, 1.f - b - brightness), nvgRGBAf(0, 0, 0, 1.f - b)));
+		nvgFill(args.vg);
+	}
+
+	// Draw lights and halos
+	Widget::drawLayer(args, 1);
+
+	// Tint all draws after this point
+	nvgGlobalTint(args.vg, nvgRGBAf(b, b, b, 1));
+
+	// Draw plugs
+	Widget::drawLayer(args, 2);
+
+	// Draw cables
+	Widget::drawLayer(args, 3);
+
+	// Draw selection rectangle
+	if (internal->selecting) {
+		nvgBeginPath(args.vg);
+		math::Rect selectionBox = math::Rect::fromCorners(internal->selectionStart, internal->selectionEnd);
+		nvgRect(args.vg, RECT_ARGS(selectionBox));
+		nvgFillColor(args.vg, nvgRGBAf(1, 0, 0, 0.25));
+		nvgFill(args.vg);
+		nvgStrokeWidth(args.vg, 2.0);
+		nvgStrokeColor(args.vg, nvgRGBAf(1, 0, 0, 0.5));
+		nvgStroke(args.vg);
+	}
 }
 
-void RackWidget::onHover(const event::Hover& e) {
+void RackWidget::onHover(const HoverEvent& e) {
 	// Set before calling children's onHover()
-	mousePos = e.pos;
+	internal->mousePos = e.pos;
+
 	OpaqueWidget::onHover(e);
 }
 
-void RackWidget::onHoverKey(const event::HoverKey& e) {
+void RackWidget::onHoverKey(const HoverKeyEvent& e) {
 	OpaqueWidget::onHoverKey(e);
+}
+
+void RackWidget::onButton(const ButtonEvent& e) {
+	OpaqueWidget::onButton(e);
 	if (e.isConsumed())
 		return;
 
-	if (e.action == GLFW_PRESS || e.action == GLFW_REPEAT) {
-		switch (e.key) {
-			case GLFW_KEY_V: {
-				if ((e.mods & RACK_MOD_MASK) == RACK_MOD_CTRL) {
-					pastePresetClipboardAction();
-					e.consume(this);
-				}
-			} break;
+	if (e.button == GLFW_MOUSE_BUTTON_RIGHT) {
+		if (e.action == GLFW_PRESS) {
+			APP->scene->browser->show();
 		}
+		e.consume(this);
 	}
 }
 
-void RackWidget::onDragHover(const event::DragHover& e) {
+void RackWidget::onDragStart(const DragStartEvent& e) {
+	if (e.button == GLFW_MOUSE_BUTTON_LEFT) {
+		// Deselect all modules
+		updateSelectionFromRect();
+		internal->selecting = true;
+		internal->selectionStart = internal->mousePos;
+		internal->selectionEnd = internal->mousePos;
+	}
+}
+
+void RackWidget::onDragEnd(const DragEndEvent& e) {
+	if (e.button == GLFW_MOUSE_BUTTON_LEFT) {
+		internal->selecting = false;
+	}
+}
+
+void RackWidget::onDragHover(const DragHoverEvent& e) {
 	// Set before calling children's onDragHover()
-	mousePos = e.pos;
+	internal->mousePos = e.pos;
+
+	if (internal->selecting) {
+		internal->selectionEnd = internal->mousePos;
+		updateSelectionFromRect();
+	}
+
 	OpaqueWidget::onDragHover(e);
 }
 
-void RackWidget::onButton(const event::Button& e) {
-	Widget::onButton(e);
-	e.stopPropagating();
-	if (e.isConsumed())
-		return;
+widget::Widget* RackWidget::getModuleContainer() {
+	return internal->moduleContainer;
+}
 
-	if (e.action == GLFW_PRESS && e.button == GLFW_MOUSE_BUTTON_RIGHT) {
-		APP->scene->moduleBrowser->show();
-		e.consume(this);
-	}
+widget::Widget* RackWidget::getPlugContainer() {
+	return internal->plugContainer;
+}
+
+widget::Widget* RackWidget::getCableContainer() {
+	return internal->cableContainer;
+}
+
+math::Vec RackWidget::getMousePos() {
+	return internal->mousePos;
 }
 
 void RackWidget::clear() {
 	// This isn't required because removing all ModuleWidgets should remove all cables, but do it just in case.
 	clearCables();
 	// Remove ModuleWidgets
-	std::list<widget::Widget*> widgets = moduleContainer->children;
-	for (widget::Widget* w : widgets) {
-		ModuleWidget* moduleWidget = dynamic_cast<ModuleWidget*>(w);
-		assert(moduleWidget);
-		removeModule(moduleWidget);
-		delete moduleWidget;
+	for (ModuleWidget* mw : getModules()) {
+		removeModule(mw);
+		delete mw;
 	}
 }
 
-json_t* RackWidget::toJson() {
-	// root
-	json_t* rootJ = json_object();
-
-	// Get module offset so modules are aligned to (0, 0) when the patch is loaded.
-	math::Vec moduleOffset = math::Vec(INFINITY, INFINITY);
-	for (widget::Widget* w : moduleContainer->children) {
-		moduleOffset = moduleOffset.min(w->box.pos);
-	}
-	if (moduleContainer->children.empty()) {
-		moduleOffset = RACK_OFFSET;
-	}
-
-	// modules
-	json_t* modulesJ = json_array();
-	for (widget::Widget* w : moduleContainer->children) {
-		ModuleWidget* moduleWidget = dynamic_cast<ModuleWidget*>(w);
-		assert(moduleWidget);
-		// module
-		json_t* moduleJ = moduleWidget->toJson();
-		{
-			// pos
-			math::Vec pos = moduleWidget->box.pos.minus(moduleOffset);
-			pos = pos.div(RACK_GRID_SIZE).round();
-			json_t* posJ = json_pack("[i, i]", (int) pos.x, (int) pos.y);
-			json_object_set_new(moduleJ, "pos", posJ);
-		}
-		json_array_append_new(modulesJ, moduleJ);
-	}
-	json_object_set_new(rootJ, "modules", modulesJ);
-
-	// cables
-	json_t* cablesJ = json_array();
-	for (widget::Widget* w : cableContainer->children) {
-		CableWidget* cw = dynamic_cast<CableWidget*>(w);
-		assert(cw);
-
-		// Only serialize complete cables
-		if (!cw->isComplete())
-			continue;
-
-		json_t* cableJ = cw->toJson();
-		json_array_append_new(cablesJ, cableJ);
-	}
-	json_object_set_new(rootJ, "cables", cablesJ);
-
-	return rootJ;
-}
-
-void RackWidget::fromJson(json_t* rootJ) {
+void RackWidget::mergeJson(json_t* rootJ) {
 	// modules
 	json_t* modulesJ = json_object_get(rootJ, "modules");
 	if (!modulesJ)
@@ -231,139 +269,415 @@ void RackWidget::fromJson(json_t* rootJ) {
 	size_t moduleIndex;
 	json_t* moduleJ;
 	json_array_foreach(modulesJ, moduleIndex, moduleJ) {
-		ModuleWidget* moduleWidget = moduleFromJson(moduleJ);
-
-		if (moduleWidget) {
-			// Before 1.0, the module ID was the index in the "modules" array
-			if (APP->patch->isLegacy(2)) {
-				moduleWidget->module->id = moduleIndex;
-			}
-
-			// pos
-			json_t* posJ = json_object_get(moduleJ, "pos");
-			double x, y;
-			json_unpack(posJ, "[F, F]", &x, &y);
-			math::Vec pos = math::Vec(x, y);
-			if (APP->patch->isLegacy(1)) {
-				// Before 0.6, positions were in pixel units
-				moduleWidget->box.pos = pos;
-			}
-			else {
-				moduleWidget->box.pos = pos.mult(RACK_GRID_SIZE);
-			}
-			moduleWidget->box.pos = moduleWidget->box.pos.plus(RACK_OFFSET);
-
-			addModule(moduleWidget);
+		// module
+		json_t* idJ = json_object_get(moduleJ, "id");
+		if (!idJ)
+			continue;
+		int64_t id = json_integer_value(idJ);
+		// TODO Legacy v0.6?
+		ModuleWidget* mw = getModule(id);
+		if (!mw) {
+			WARN("Cannot find ModuleWidget %lld", (long long) id);
+			continue;
 		}
-		else {
-			json_t* pluginSlugJ = json_object_get(moduleJ, "plugin");
-			json_t* modelSlugJ = json_object_get(moduleJ, "model");
-			std::string pluginSlug = json_string_value(pluginSlugJ);
-			std::string modelSlug = json_string_value(modelSlugJ);
-			APP->patch->warningLog += string::f("Could not find module \"%s\" of plugin \"%s\"\n", modelSlug.c_str(), pluginSlug.c_str());
-		}
+
+		// pos
+		math::Vec pos = mw->box.pos.minus(RACK_OFFSET);
+		pos = pos.div(RACK_GRID_SIZE).round();
+		json_t* posJ = json_pack("[i, i]", (int) pos.x, (int) pos.y);
+		json_object_set_new(moduleJ, "pos", posJ);
+	}
+
+	// Calculate plug orders
+	std::map<Widget*, int> plugOrders;
+	int plugOrder = 1;
+	for (Widget* w : internal->plugContainer->children) {
+		plugOrders[w] = plugOrder++;
 	}
 
 	// cables
 	json_t* cablesJ = json_object_get(rootJ, "cables");
-	// Before 1.0, cables were called wires
 	if (!cablesJ)
-		cablesJ = json_object_get(rootJ, "wires");
-	assert(cablesJ);
+		return;
 	size_t cableIndex;
 	json_t* cableJ;
 	json_array_foreach(cablesJ, cableIndex, cableJ) {
-		// Create a unserialize cable
-		CableWidget* cw = new CableWidget;
-		cw->fromJson(cableJ);
-		if (!cw->isComplete()) {
-			delete cw;
+		// cable
+		json_t* idJ = json_object_get(cableJ, "id");
+		if (!idJ)
+			continue;
+		int64_t id = json_integer_value(idJ);
+		CableWidget* cw = getCable(id);
+		if (!cw) {
+			WARN("Cannot find CableWidget %lld", (long long) id);
 			continue;
 		}
-		addCable(cw);
+
+		cw->mergeJson(cableJ);
+
+		// inputPlugOrder
+		auto plugOrderIt = plugOrders.find(cw->inputPlug);
+		if (plugOrderIt != plugOrders.end()) {
+			int inputPlugOrder = plugOrderIt->second;
+			json_object_set_new(cableJ, "inputPlugOrder", json_integer(inputPlugOrder));
+		}
+
+		// outputPlugOrder
+		plugOrderIt = plugOrders.find(cw->outputPlug);
+		if (plugOrderIt != plugOrders.end()) {
+			int outputPlugOrder = plugOrderIt->second;
+			json_object_set_new(cableJ, "outputPlugOrder", json_integer(outputPlugOrder));
+		}
 	}
 }
 
-void RackWidget::pastePresetClipboardAction() {
-	const char* moduleJson = glfwGetClipboardString(APP->window->win);
-	if (!moduleJson) {
+void RackWidget::fromJson(json_t* rootJ) {
+	// version
+	std::string version;
+	json_t* versionJ = json_object_get(rootJ, "version");
+	if (versionJ)
+		version = json_string_value(versionJ);
+
+	bool legacyV05 = false;
+	if (string::startsWith(version, "0.3.") || string::startsWith(version, "0.4.") || string::startsWith(version, "0.5.") || version == "dev") {
+		legacyV05 = true;
+	}
+
+	// modules
+	json_t* modulesJ = json_object_get(rootJ, "modules");
+	if (!modulesJ)
+		return;
+
+	size_t moduleIndex;
+	json_t* moduleJ;
+	json_array_foreach(modulesJ, moduleIndex, moduleJ) {
+		// Get module ID
+		json_t* idJ = json_object_get(moduleJ, "id");
+		int64_t id;
+		if (idJ)
+			id = json_integer_value(idJ);
+		else
+			id = moduleIndex;
+
+		// Get Module
+		engine::Module* module = APP->engine->getModule(id);
+		if (!module) {
+			WARN("Cannot find Module %lld", (long long) id);
+			continue;
+		}
+
+		// Create ModuleWidget
+		INFO("Creating module widget %s", module->model->getFullName().c_str());
+		ModuleWidget* mw = module->model->createModuleWidget(module);
+
+		// pos
+		json_t* posJ = json_object_get(moduleJ, "pos");
+		double x = 0.0, y = 0.0;
+		json_unpack(posJ, "[F, F]", &x, &y);
+		math::Vec pos = math::Vec(x, y);
+		if (legacyV05) {
+			// In <=v0.5, positions were in pixel units
+		}
+		else {
+			pos = pos.mult(RACK_GRID_SIZE);
+		}
+		pos = pos.plus(RACK_OFFSET);
+		setModulePosForce(mw, pos);
+
+		internal->moduleContainer->addChild(mw);
+	}
+
+	updateExpanders();
+
+	std::map<Widget*, int> plugOrders;
+
+	// cables
+	json_t* cablesJ = json_object_get(rootJ, "cables");
+	// In <=v0.6, cables were called wires
+	if (!cablesJ)
+		cablesJ = json_object_get(rootJ, "wires");
+	if (!cablesJ)
+		return;
+	size_t cableIndex;
+	json_t* cableJ;
+	json_array_foreach(cablesJ, cableIndex, cableJ) {
+		// Get cable ID
+		json_t* idJ = json_object_get(cableJ, "id");
+		int64_t id;
+		// In <=v0.6, the cable ID was the index in the array.
+		if (idJ)
+			id = json_integer_value(idJ);
+		else
+			id = cableIndex;
+
+		// Get Cable
+		engine::Cable* cable = APP->engine->getCable(id);
+		if (!cable) {
+			WARN("Cannot find Cable %lld", (long long) id);
+			continue;
+		}
+
+		// Create CableWidget
+		CableWidget* cw = new CableWidget;
+		try {
+			cw->setCable(cable);
+			cw->fromJson(cableJ);
+		}
+		catch (Exception& e) {
+			delete cw;
+			// If creating CableWidget fails, remove Cable from Engine.
+			APP->engine->removeCable(cable);
+			delete cable;
+			continue;
+		}
+		addCable(cw);
+
+		// inputPlugOrder
+		json_t* inputPlugOrderJ = json_object_get(cableJ, "inputPlugOrder");
+		if (inputPlugOrderJ) {
+			plugOrders[cw->inputPlug] = json_integer_value(inputPlugOrderJ);
+		}
+
+		// outputPlugOrder
+		json_t* outputPlugOrderJ = json_object_get(cableJ, "outputPlugOrder");
+		if (outputPlugOrderJ) {
+			plugOrders[cw->outputPlug] = json_integer_value(outputPlugOrderJ);
+		}
+	}
+
+	// Reorder plugs, approximately O(n log(n) log(n))
+	internal->plugContainer->children.sort([&](Widget* w1, Widget* w2) {
+		return get(plugOrders, w1, 0) < get(plugOrders, w2, 0);
+	});
+}
+
+struct PasteJsonResult {
+	/** Old module ID -> new module */
+	std::map<int64_t, ModuleWidget*> newModules;
+};
+static PasteJsonResult RackWidget_pasteJson(RackWidget* that, json_t* rootJ, history::ComplexAction* complexAction) {
+	that->deselectAll();
+
+	std::map<int64_t, ModuleWidget*> newModules;
+	math::Vec minPos(INFINITY, INFINITY);
+	math::Vec maxPos(-INFINITY, -INFINITY);
+
+	// modules
+	json_t* modulesJ = json_object_get(rootJ, "modules");
+	if (!modulesJ)
+		return {};
+
+	size_t moduleIndex;
+	json_t* moduleJ;
+	json_array_foreach(modulesJ, moduleIndex, moduleJ) {
+		json_t* idJ = json_object_get(moduleJ, "id");
+		if (!idJ)
+			continue;
+		int64_t id = json_integer_value(idJ);
+
+		engine::Module::jsonStripIds(moduleJ);
+
+		ModuleWidget* mw;
+		try {
+			mw = moduleWidgetFromJson(moduleJ);
+		}
+		catch (Exception& e) {
+			WARN("%s", e.what());
+			continue;
+		}
+		assert(mw);
+		assert(mw->module);
+
+		APP->engine->addModule(mw->module);
+
+		// pos
+		json_t* posJ = json_object_get(moduleJ, "pos");
+		double x = 0.0, y = 0.0;
+		json_unpack(posJ, "[F, F]", &x, &y);
+		math::Vec pos = math::Vec(x, y);
+		mw->box.pos = pos * RACK_GRID_SIZE + RACK_OFFSET;
+		minPos = minPos.min(mw->box.getTopLeft());
+		maxPos = maxPos.max(mw->box.getBottomRight());
+
+		that->internal->moduleContainer->addChild(mw);
+		that->select(mw);
+
+		newModules[id] = mw;
+	}
+
+	// Adjust center of selection to appear at center of rack view
+	math::Vec selectionCenter = (minPos + maxPos) / 2;
+	math::Vec mousePos = that->internal->mousePos;
+	math::Vec deltaPos = ((mousePos - selectionCenter) / RACK_GRID_SIZE).round() * RACK_GRID_SIZE;
+
+	for (auto pair : newModules) {
+		ModuleWidget* mw = pair.second;
+		mw->box.pos += deltaPos;
+	}
+
+	// This calls updateExpanders()
+	that->setSelectionPosNearest(math::Vec(0, 0));
+
+	// Add positioned selected modules to history
+	for (ModuleWidget* mw : that->getSelected()) {
+		// history::ModuleAdd
+		history::ModuleAdd* h = new history::ModuleAdd;
+		h->setModule(mw);
+		complexAction->push(h);
+	}
+
+	// cables
+	json_t* cablesJ = json_object_get(rootJ, "cables");
+	if (cablesJ) {
+		size_t cableIndex;
+		json_t* cableJ;
+		json_array_foreach(cablesJ, cableIndex, cableJ) {
+			engine::Cable::jsonStripIds(cableJ);
+
+			// Overwrite old module IDs with new module IDs
+			json_t* inputModuleIdJ = json_object_get(cableJ, "inputModuleId");
+			if (!inputModuleIdJ)
+				continue;
+			int64_t inputModuleId = json_integer_value(inputModuleIdJ);
+			auto inputModuleIdIt = newModules.find(inputModuleId);
+			if (inputModuleIdIt == newModules.end())
+				continue;
+			inputModuleId = inputModuleIdIt->second->module->id;
+			json_object_set_new(cableJ, "inputModuleId", json_integer(inputModuleId));
+
+			json_t* outputModuleIdJ = json_object_get(cableJ, "outputModuleId");
+			if (!outputModuleIdJ)
+				continue;
+			int64_t outputModuleId = json_integer_value(outputModuleIdJ);
+			auto outputModuleIdIt = newModules.find(outputModuleId);
+			if (outputModuleIdIt == newModules.end())
+				continue;
+			outputModuleId = outputModuleIdIt->second->module->id;
+			json_object_set_new(cableJ, "outputModuleId", json_integer(outputModuleId));
+
+			// Create Cable
+			engine::Cable* cable = new engine::Cable;
+			try {
+				cable->fromJson(cableJ);
+				APP->engine->addCable(cable);
+			}
+			catch (Exception& e) {
+				WARN("Cannot paste cable: %s", e.what());
+				delete cable;
+				continue;
+			}
+
+			// Create CableWidget
+			app::CableWidget* cw = new app::CableWidget;
+			cw->setCable(cable);
+			cw->fromJson(cableJ);
+			that->addCable(cw);
+
+			// history::CableAdd
+			history::CableAdd* h = new history::CableAdd;
+			h->setCable(cw);
+			complexAction->push(h);
+		}
+	}
+
+	return {newModules};
+}
+
+void RackWidget::pasteJsonAction(json_t* rootJ) {
+	history::ComplexAction* complexAction = new history::ComplexAction;
+	complexAction->name = string::translate("RackWidget.history.pasteModules");
+	DEFER({
+		if (!complexAction->isEmpty())
+			APP->history->push(complexAction);
+		else
+			delete complexAction;
+	});
+
+	RackWidget_pasteJson(this, rootJ, complexAction);
+}
+
+void RackWidget::pasteModuleJsonAction(json_t* moduleJ) {
+	engine::Module::jsonStripIds(moduleJ);
+
+	ModuleWidget* mw;
+	try {
+		mw = moduleWidgetFromJson(moduleJ);
+	}
+	catch (Exception& e) {
+		WARN("%s", e.what());
+		return;
+	}
+	assert(mw);
+	assert(mw->module);
+
+	history::ComplexAction* h = new history::ComplexAction;
+	h->name = string::translate("RackWidget.history.pasteModule");
+
+	APP->engine->addModule(mw->module);
+
+	updateModuleOldPositions();
+	addModuleAtMouse(mw);
+	h->push(getModuleDragAction());
+
+	// history::ModuleAdd
+	history::ModuleAdd* ha = new history::ModuleAdd;
+	ha->setModule(mw);
+	h->push(ha);
+
+	APP->history->push(h);
+}
+
+void RackWidget::pasteClipboardAction() {
+	const char* json = glfwGetClipboardString(APP->window->win);
+	if (!json) {
 		WARN("Could not get text from clipboard.");
 		return;
 	}
 
 	json_error_t error;
-	json_t* moduleJ = json_loads(moduleJson, 0, &error);
-	if (moduleJ) {
-		ModuleWidget* mw = moduleFromJson(moduleJ);
-		json_decref(moduleJ);
+	json_t* rootJ = json_loads(json, 0, &error);
+	if (!rootJ) {
+		WARN("JSON parsing error at %s %d:%d %s", error.source, error.line, error.column, error.text);
+		return;
+	}
+	DEFER({json_decref(rootJ);});
 
-		// Reset ID so the Engine automatically assigns a new one
-		mw->module->id = -1;
-
-		addModuleAtMouse(mw);
-
-		// history::ModuleAdd
-		history::ModuleAdd* h = new history::ModuleAdd;
-		h->setModule(mw);
-		APP->history->push(h);
+	json_t* modulesJ = json_object_get(rootJ, "modules");
+	if (modulesJ) {
+		// JSON is a selection of modules
+		pasteJsonAction(rootJ);
 	}
 	else {
-		WARN("JSON parsing error at %s %d:%d %s", error.source, error.line, error.column, error.text);
-	}
-}
-
-static void RackWidget_updateAdjacent(RackWidget* that) {
-	for (widget::Widget* w : that->moduleContainer->children) {
-		math::Vec pLeft = w->box.pos.div(RACK_GRID_SIZE).round();
-		math::Vec pRight = w->box.getTopRight().div(RACK_GRID_SIZE).round();
-		ModuleWidget* mwLeft = NULL;
-		ModuleWidget* mwRight = NULL;
-
-		// Find adjacent modules
-		for (widget::Widget* w2 : that->moduleContainer->children) {
-			if (w2 == w)
-				continue;
-
-			math::Vec p2Left = w2->box.pos.div(RACK_GRID_SIZE).round();
-			math::Vec p2Right = w2->box.getTopRight().div(RACK_GRID_SIZE).round();
-
-			// Check if this is a left module
-			if (p2Right.isEqual(pLeft)) {
-				mwLeft = dynamic_cast<ModuleWidget*>(w2);
-			}
-
-			// Check if this is a right module
-			if (p2Left.isEqual(pRight)) {
-				mwRight = dynamic_cast<ModuleWidget*>(w2);
-			}
-		}
-
-		ModuleWidget* mw = dynamic_cast<ModuleWidget*>(w);
-		mw->module->leftExpander.moduleId = mwLeft ? mwLeft->module->id : -1;
-		mw->module->rightExpander.moduleId = mwRight ? mwRight->module->id : -1;
+		// JSON is a single module
+		pasteModuleJsonAction(rootJ);
 	}
 }
 
 void RackWidget::addModule(ModuleWidget* m) {
-	// Add module to ModuleContainer
 	assert(m);
-	// Module must be 3U high and at least 1HP wide
-	assert(m->box.size.x >= RACK_GRID_WIDTH);
-	assert(m->box.size.y == RACK_GRID_HEIGHT);
-	moduleContainer->addChild(m);
 
-	if (m->module) {
-		// Add module to Engine
-		APP->engine->addModule(m->module);
-	}
-	RackWidget_updateAdjacent(this);
+	// Module must be 3U high and at least 1HP wide
+	if (m->box.size.x < RACK_GRID_WIDTH / 2)
+		throw Exception("Module %s width is %g px, must be at least %g px", m->model->getFullName().c_str(), m->box.size.x, RACK_GRID_WIDTH);
+
+	if (m->box.size.y != RACK_GRID_HEIGHT)
+		throw Exception("Module %s height is %g px, must be %g px", m->model->getFullName().c_str(), m->box.size.y, RACK_GRID_HEIGHT);
+
+	internal->moduleContainer->addChild(m);
+
+	updateExpanders();
 }
 
 void RackWidget::addModuleAtMouse(ModuleWidget* mw) {
 	assert(mw);
 	// Move module nearest to the mouse position
-	math::Vec pos = mousePos.minus(mw->box.size.div(2));
-	setModulePosNearest(mw, pos);
+	math::Vec pos = internal->mousePos.minus(mw->box.size.div(2));
+
+	if (settings::squeezeModules)
+		setModulePosSqueeze(mw, pos);
+	else
+		setModulePosNearest(mw, pos);
+
 	addModule(mw);
 }
 
@@ -378,138 +692,17 @@ void RackWidget::removeModule(ModuleWidget* m) {
 	// Disconnect cables
 	m->disconnect();
 
-	if (m->module) {
-		// Remove module from Engine
-		APP->engine->removeModule(m->module);
-	}
+	// Deselect module if selected
+	internal->selectedModules.erase(m);
 
 	// Remove module from ModuleContainer
-	moduleContainer->removeChild(m);
+	internal->moduleContainer->removeChild(m);
+
+	updateExpanders();
 }
 
-bool RackWidget::requestModulePos(ModuleWidget* mw, math::Vec pos) {
-	// Check intersection with other modules
-	math::Rect mwBox = math::Rect(pos, mw->box.size);
-	for (widget::Widget* w2 : moduleContainer->children) {
-		// Don't intersect with self
-		if (mw == w2)
-			continue;
-		// Don't intersect with invisible modules
-		if (!w2->visible)
-			continue;
-		// Check intersection
-		if (mwBox.isIntersecting(w2->box)) {
-			return false;
-		}
-	}
-
-	// Accept requested position
-	mw->box = mwBox;
-	RackWidget_updateAdjacent(this);
-	return true;
-}
-
-void RackWidget::setModulePosNearest(ModuleWidget* mw, math::Vec pos) {
-	// Dijkstra's algorithm to generate a sorted list of Vecs closest to `pos`.
-
-	// Comparison of distance of Vecs to `pos`
-	auto cmpNearest = [&](const math::Vec & a, const math::Vec & b) {
-		return a.minus(pos).square() > b.minus(pos).square();
-	};
-	// Comparison of dictionary order of Vecs
-	auto cmp = [&](const math::Vec & a, const math::Vec & b) {
-		if (a.x != b.x)
-			return a.x < b.x;
-		return a.y < b.y;
-	};
-	// Priority queue sorted by distance from `pos`
-	std::priority_queue<math::Vec, std::vector<math::Vec>, decltype(cmpNearest)> queue(cmpNearest);
-	// Set of already-tested Vecs
-	std::set<math::Vec, decltype(cmp)> visited(cmp);
-	// Seed priority queue with closest Vec
-	math::Vec closestPos = pos.div(RACK_GRID_SIZE).round().mult(RACK_GRID_SIZE);
-	queue.push(closestPos);
-
-	while (!queue.empty()) {
-		math::Vec testPos = queue.top();
-		// Check testPos
-		if (requestModulePos(mw, testPos))
-			return;
-		// Move testPos to visited set
-		queue.pop();
-		visited.insert(testPos);
-
-		// Add adjacent Vecs
-		static const std::vector<math::Vec> deltas = {
-			math::Vec(-1, 0).mult(RACK_GRID_SIZE),
-			math::Vec(1, 0).mult(RACK_GRID_SIZE),
-			math::Vec(0, -1).mult(RACK_GRID_SIZE),
-			math::Vec(0, 1).mult(RACK_GRID_SIZE),
-		};
-		for (math::Vec delta : deltas) {
-			math::Vec newPos = testPos.plus(delta);
-			if (visited.find(newPos) == visited.end()) {
-				queue.push(newPos);
-			}
-		}
-	}
-
-	// We failed to find a box. This shouldn't happen on an infinite rack.
-	assert(0);
-}
-
-void RackWidget::setModulePosForce(ModuleWidget* mw, math::Vec pos) {
-	mw->box.pos = pos.div(RACK_GRID_SIZE).round().mult(RACK_GRID_SIZE);
-
-	// Comparison of center X coordinates
-	auto cmp = [&](const widget::Widget * a, const widget::Widget * b) {
-		return a->box.pos.x + a->box.size.x / 2 < b->box.pos.x + b->box.size.x / 2;
-	};
-
-	// Collect modules to the left and right of `mw`
-	std::set<widget::Widget*, decltype(cmp)> leftModules(cmp);
-	std::set<widget::Widget*, decltype(cmp)> rightModules(cmp);
-	for (widget::Widget* w2 : moduleContainer->children) {
-		if (w2 == mw)
-			continue;
-		// Modules must be on the same row as `mw`
-		if (w2->box.pos.y != mw->box.pos.y)
-			continue;
-		if (cmp(w2, mw))
-			leftModules.insert(w2);
-		else
-			rightModules.insert(w2);
-	}
-
-	// Shove left modules
-	float xLimit = mw->box.pos.x;
-	for (auto it = leftModules.rbegin(); it != leftModules.rend(); it++) {
-		widget::Widget* w = *it;
-		float x = xLimit - w->box.size.x;
-		x = std::round(x / RACK_GRID_WIDTH) * RACK_GRID_WIDTH;
-		if (w->box.pos.x < x)
-			break;
-		w->box.pos.x = x;
-		xLimit = x;
-	}
-
-	// Shove right modules
-	xLimit = mw->box.pos.x + mw->box.size.x;
-	for (auto it = rightModules.begin(); it != rightModules.end(); it++) {
-		widget::Widget* w = *it;
-		float x = xLimit;
-		x = std::round(x / RACK_GRID_WIDTH) * RACK_GRID_WIDTH;
-		if (w->box.pos.x > x)
-			break;
-		w->box.pos.x = x;
-		xLimit = x + w->box.size.x;
-	}
-
-	RackWidget_updateAdjacent(this);
-}
-
-ModuleWidget* RackWidget::getModule(int moduleId) {
-	for (widget::Widget* w : moduleContainer->children) {
+ModuleWidget* RackWidget::getModule(int64_t moduleId) {
+	for (widget::Widget* w : internal->moduleContainer->children) {
 		ModuleWidget* mw = dynamic_cast<ModuleWidget*>(w);
 		assert(mw);
 		if (mw->module->id == moduleId)
@@ -518,159 +711,966 @@ ModuleWidget* RackWidget::getModule(int moduleId) {
 	return NULL;
 }
 
-bool RackWidget::isEmpty() {
-	return moduleContainer->children.empty();
-}
-
-void RackWidget::updateModuleDragPositions() {
-	moduleDragPositions.clear();
-	for (widget::Widget* w : moduleContainer->children) {
+std::vector<ModuleWidget*> RackWidget::getModules() {
+	std::vector<ModuleWidget*> mws;
+	mws.reserve(internal->moduleContainer->children.size());
+	for (widget::Widget* w : internal->moduleContainer->children) {
 		ModuleWidget* mw = dynamic_cast<ModuleWidget*>(w);
 		assert(mw);
-		moduleDragPositions[mw->module->id] = mw->box.pos;
+		mws.push_back(mw);
+	}
+	return mws;
+}
+
+bool RackWidget::hasModules() {
+	return internal->moduleContainer->children.empty();
+}
+
+bool RackWidget::requestModulePos(ModuleWidget* mw, math::Vec pos) {
+	// Check intersection with other modules
+	math::Rect mwBox = math::Rect(pos, mw->box.size);
+	for (widget::Widget* w2 : internal->moduleContainer->children) {
+		// Don't intersect with self
+		if (mw == w2)
+			continue;
+		// Check intersection
+		math::Rect w2Box = w2->box;
+		if (mwBox.intersects(w2Box))
+			return false;
+	}
+
+	// Accept requested position
+	mw->setPosition(mwBox.pos);
+	updateExpanders();
+	return true;
+}
+
+static math::Vec eachNearestGridPos(math::Vec pos, std::function<bool(math::Vec pos)> f) {
+	math::Vec leftPos = (pos / RACK_GRID_SIZE).round();
+	math::Vec rightPos = leftPos + math::Vec(1, 0);
+
+	while (true) {
+		if (f(leftPos * RACK_GRID_SIZE))
+			return leftPos * RACK_GRID_SIZE;
+		leftPos.x -= 1;
+
+		if (f(rightPos * RACK_GRID_SIZE))
+			return rightPos * RACK_GRID_SIZE;
+		rightPos.x += 1;
+	}
+
+	assert(false);
+	return math::Vec();
+}
+
+void RackWidget::setModulePosNearest(ModuleWidget* mw, math::Vec pos) {
+	eachNearestGridPos(pos, [&](math::Vec pos) -> bool {
+		return requestModulePos(mw, pos);
+	});
+}
+
+static bool compareModuleLeft(ModuleWidget* a, ModuleWidget* b) {
+	return a->getGridBox().getLeft() < b->getGridBox().getLeft();
+}
+
+void RackWidget::setModulePosForce(ModuleWidget* mw, math::Vec pos) {
+	math::Rect mwBox;
+	mwBox.pos = ((pos - RACK_OFFSET) / RACK_GRID_SIZE).round();
+	mwBox.size = mw->getGridSize();
+
+	// Collect modules to the left and right of new pos
+	std::set<ModuleWidget*, decltype(compareModuleLeft)*> leftModules(compareModuleLeft);
+	std::set<ModuleWidget*, decltype(compareModuleLeft)*> rightModules(compareModuleLeft);
+	for (widget::Widget* w2 : internal->moduleContainer->children) {
+		ModuleWidget* mw2 = (ModuleWidget*) w2;
+		// Skip this module
+		if (mw2 == mw)
+			continue;
+		// Modules must be on the same row as pos
+		if (mw2->getGridBox().getTop() != mwBox.getTop())
+			continue;
+		// Insert into leftModules or rightModules
+		if (mw2->getGridBox().getLeft() >= mwBox.getLeft())
+			rightModules.insert(mw2);
+		else
+			leftModules.insert(mw2);
+	}
+
+	// Set module position
+	mw->setGridPosition(mwBox.pos);
+
+	// Shove left modules
+	math::Vec cursor = mwBox.getTopLeft();
+	for (auto it = leftModules.rbegin(); it != leftModules.rend(); it++) {
+		ModuleWidget* mw2 = (ModuleWidget*) *it;
+		math::Rect mw2Box = mw2->getGridBox();
+
+		if (mw2Box.getRight() <= cursor.x)
+			break;
+
+		mw2Box.pos.x = cursor.x - mw2Box.size.x;
+		mw2->setGridPosition(mw2Box.pos);
+		cursor.x = mw2Box.getLeft();
+	}
+
+	// Shove right modules
+	cursor = mwBox.getTopRight();
+	for (auto it = rightModules.begin(); it != rightModules.end(); it++) {
+		ModuleWidget* mw2 = (ModuleWidget*) *it;
+		math::Rect mw2Box = mw2->getGridBox();
+
+		if (mw2Box.getLeft() >= cursor.x)
+			break;
+
+		mw2Box.pos.x = cursor.x;
+		mw2->setGridPosition(mw2Box.pos);
+		cursor.x = mw2Box.getRight();
+	}
+
+	updateExpanders();
+}
+
+void RackWidget::setModulePosSqueeze(ModuleWidget* mw, math::Vec pos) {
+	// Reset modules to their old positions, including this module
+	for (auto& pair : internal->moduleOldPositions) {
+		widget::Widget* w2 = pair.first;
+		w2->box.pos = pair.second;
+	}
+
+	unsqueezeModulePos(mw);
+	squeezeModulePos(mw, pos);
+
+	updateExpanders();
+}
+
+void RackWidget::squeezeModulePos(ModuleWidget* mw, math::Vec pos) {
+	math::Rect mwBox;
+	mwBox.pos = ((pos - RACK_OFFSET) / RACK_GRID_SIZE).round();
+	mwBox.size = mw->getGridSize();
+
+	// Collect modules to the left and right of new pos
+	std::set<ModuleWidget*, decltype(compareModuleLeft)*> leftModules(compareModuleLeft);
+	std::set<ModuleWidget*, decltype(compareModuleLeft)*> rightModules(compareModuleLeft);
+	for (widget::Widget* w2 : internal->moduleContainer->children) {
+		ModuleWidget* mw2 = static_cast<ModuleWidget*>(w2);
+		// Skip this module
+		if (mw2 == mw)
+			continue;
+		// Modules must be on the same row as pos
+		if (mw2->getGridBox().getTop() != mwBox.getTop())
+			continue;
+		// Insert into leftModules or rightModules
+		if (mw2->getGridBox().getLeft() >= mwBox.getLeft())
+			rightModules.insert(mw2);
+		else
+			leftModules.insert(mw2);
+	}
+
+	ModuleWidget* leftModule = leftModules.empty() ? NULL : *leftModules.rbegin();
+	ModuleWidget* rightModule = rightModules.empty() ? NULL : *rightModules.begin();
+
+	// If there isn't enough space between the last leftModule and first rightModule, place module to the right of the leftModule and shove right modules.
+	if (leftModule && rightModule && leftModule->getGridBox().getRight() + mwBox.getWidth() > rightModule->getGridBox().getLeft()) {
+		mwBox.pos.x = leftModule->getGridBox().getRight();
+
+		// Shove right modules
+		float xRight = mwBox.getRight();
+		for (auto it = rightModules.begin(); it != rightModules.end(); it++) {
+			widget::Widget* w2 = *it;
+			ModuleWidget* mw2 = static_cast<ModuleWidget*>(w2);
+			math::Rect mw2Box = mw2->getGridBox();
+			// Break when module no longer needs to be shoved
+			if (mw2Box.getLeft() >= xRight)
+				break;
+			// Shove module to the right of the last module
+			math::Rect newBox = mw2Box;
+			newBox.pos.x = xRight;
+			mw2->setGridPosition(newBox.pos);
+			xRight = newBox.getRight();
+		}
+	}
+	// Place right of leftModule
+	else if (leftModule && leftModule->getGridBox().getRight() > mwBox.getLeft()) {
+		mwBox.pos.x = leftModule->getGridBox().getRight();
+	}
+	// Place left of rightModule
+	else if (rightModule && rightModule->getGridBox().getLeft() < mwBox.getRight()) {
+		mwBox.pos.x = rightModule->getGridBox().getLeft() - mwBox.getWidth();
+	}
+
+	// Commit new pos
+	mw->setGridPosition(mwBox.pos);
+}
+
+void RackWidget::unsqueezeModulePos(ModuleWidget* mw) {
+	math::Rect mwBox = mw->getGridBox();
+
+	// Collect modules to the left and right of old pos, including this module.
+	std::set<ModuleWidget*, decltype(compareModuleLeft)*> leftModules(compareModuleLeft);
+	std::set<ModuleWidget*, decltype(compareModuleLeft)*> rightModules(compareModuleLeft);
+	for (widget::Widget* w2 : internal->moduleContainer->children) {
+		ModuleWidget* mw2 = static_cast<ModuleWidget*>(w2);
+		// Skip this module
+		if (mw2 == mw)
+			continue;
+		// Modules must be on the same row as pos
+		if (mw2->getGridBox().getTop() != mwBox.getTop())
+			continue;
+		// Insert into leftModules or rightModules
+		if (mw2->getGridBox().getLeft() >= mwBox.getLeft())
+			rightModules.insert(mw2);
+		else
+			leftModules.insert(mw2);
+	}
+
+	// Immediate right/left modules
+	ModuleWidget* leftModule = leftModules.empty() ? NULL : *leftModules.rbegin();
+	ModuleWidget* rightModule = rightModules.empty() ? NULL : *rightModules.begin();
+
+	// Shove right modules back to empty space left by module.
+	if (leftModule && rightModule && (leftModule != mw) && (rightModule != mw) && leftModule->getGridBox().getRight() >= mwBox.getLeft() && rightModule->getGridBox().getLeft() <= mwBox.getRight()) {
+		float xLeft = mwBox.getLeft();
+		float xRight = mwBox.getRight();
+		for (auto it = rightModules.begin(); it != rightModules.end(); it++) {
+			widget::Widget* w2 = *it;
+			ModuleWidget* mw2 = static_cast<ModuleWidget*>(w2);
+			math::Rect mw2Box = mw2->getGridBox();
+			// Break when module is no longer touching
+			if (xRight < mw2Box.getLeft())
+				break;
+			// Shove module to the left
+			math::Rect newBox = mw2Box;
+			newBox.pos.x = xLeft;
+			mw2->setGridPosition(newBox.pos);
+			xLeft = newBox.getRight();
+			xRight = mw2Box.getRight();
+		}
+	}
+}
+
+void RackWidget::updateModuleOldPositions() {
+	internal->moduleOldPositions.clear();
+	for (ModuleWidget* mw : getModules()) {
+		internal->moduleOldPositions[mw] = mw->getPosition();
 	}
 }
 
 history::ComplexAction* RackWidget::getModuleDragAction() {
 	history::ComplexAction* h = new history::ComplexAction;
+	h->name = string::translate("RackWidget.history.moveModules");
 
-	for (widget::Widget* w : moduleContainer->children) {
-		ModuleWidget* mw = dynamic_cast<ModuleWidget*>(w);
-		assert(mw);
-		// It is possible to add modules to the rack while dragging, so ignore modules that don't exist.
-		auto it = moduleDragPositions.find(mw->module->id);
-		if (it == moduleDragPositions.end())
-			continue;
+	for (ModuleWidget* mw : getModules()) {
 		// Create ModuleMove action if the module was moved.
-		math::Vec pos = it->second;
-		if (!pos.isEqual(mw->box.pos)) {
+		auto it = internal->moduleOldPositions.find(mw);
+		if (it == internal->moduleOldPositions.end())
+			continue;
+		math::Vec oldPos = it->second;
+		if (!oldPos.equals(mw->box.pos)) {
 			history::ModuleMove* mmh = new history::ModuleMove;
 			mmh->moduleId = mw->module->id;
-			mmh->oldPos = pos;
+			mmh->oldPos = oldPos;
 			mmh->newPos = mw->box.pos;
 			h->push(mmh);
 		}
 	}
+
 	return h;
 }
 
+void RackWidget::updateSelectionFromRect() {
+	math::Rect selectionBox = math::Rect::fromCorners(internal->selectionStart, internal->selectionEnd);
+	deselectAll();
+	for (ModuleWidget* mw : getModules()) {
+		bool selected = internal->selecting && selectionBox.intersects(mw->box);
+		if (selected)
+			select(mw);
+	}
+}
 
-void RackWidget::clearCables() {
-	for (widget::Widget* w : cableContainer->children) {
-		CableWidget* cw = dynamic_cast<CableWidget*>(w);
-		assert(cw);
-		if (!cw->isComplete())
+void RackWidget::selectAll() {
+	internal->selectedModules.clear();
+	for (widget::Widget* w : internal->moduleContainer->children) {
+		ModuleWidget* mw = dynamic_cast<ModuleWidget*>(w);
+		assert(mw);
+		internal->selectedModules.insert(mw);
+	}
+}
+
+void RackWidget::deselectAll() {
+	internal->selectedModules.clear();
+}
+
+void RackWidget::select(ModuleWidget* mw, bool selected) {
+	if (selected) {
+		internal->selectedModules.insert(mw);
+	}
+	else {
+		auto it = internal->selectedModules.find(mw);
+		if (it != internal->selectedModules.end())
+			internal->selectedModules.erase(it);
+	}
+}
+
+bool RackWidget::hasSelection() {
+	return !internal->selectedModules.empty();
+}
+
+const std::set<ModuleWidget*>& RackWidget::getSelected() {
+	return internal->selectedModules;
+}
+
+bool RackWidget::isSelected(ModuleWidget* mw) {
+	auto it = internal->selectedModules.find(mw);
+	return (it != internal->selectedModules.end());
+}
+
+json_t* RackWidget::selectionToJson(bool cables) {
+	json_t* rootJ = json_object();
+
+	std::set<engine::Module*> modules;
+
+	// modules
+	json_t* modulesJ = json_array();
+	for (ModuleWidget* mw : getSelected()) {
+		json_t* moduleJ = mw->toJson();
+
+		// pos
+		math::Vec pos = mw->box.pos.minus(RACK_OFFSET);
+		pos = pos.div(RACK_GRID_SIZE).round();
+		json_t* posJ = json_pack("[i, i]", (int) pos.x, (int) pos.y);
+		json_object_set_new(moduleJ, "pos", posJ);
+
+		json_array_append_new(modulesJ, moduleJ);
+		modules.insert(mw->getModule());
+	}
+	json_object_set_new(rootJ, "modules", modulesJ);
+
+	if (cables) {
+		// cables
+		json_t* cablesJ = json_array();
+		// Only add complete cables to JSON
+		for (CableWidget* cw : getCompleteCables()) {
+			engine::Cable* cable = cw->getCable();
+			if (!cable || !cable->inputModule || !cable->outputModule)
+				continue;
+			const auto inputIt = modules.find(cable->inputModule);
+			if (inputIt == modules.end())
+				continue;
+			const auto outputIt = modules.find(cable->outputModule);
+			if (outputIt == modules.end())
+				continue;
+
+			json_t* cableJ = cable->toJson();
+			cw->mergeJson(cableJ);
+
+			json_array_append_new(cablesJ, cableJ);
+		}
+		json_object_set_new(rootJ, "cables", cablesJ);
+	}
+
+	return rootJ;
+}
+
+static const char SELECTION_FILTERS[] = "VCV Rack module selection (.vcvs):vcvs";
+
+void RackWidget::loadSelection(std::string path) {
+	FILE* file = std::fopen(path.c_str(), "r");
+	if (!file)
+		throw Exception("Could not load selection file %s", path.c_str());
+	DEFER({std::fclose(file);});
+
+	INFO("Loading selection %s", path.c_str());
+
+	json_error_t error;
+	json_t* rootJ = json_loadf(file, 0, &error);
+	if (!rootJ)
+		throw Exception("File is not a valid selection file. JSON parsing error at %s %d:%d %s", error.source, error.line, error.column, error.text);
+	DEFER({json_decref(rootJ);});
+
+	// Set mouse position to center of rack viewport, so selection is placed in view.
+	internal->mousePos = getViewport().getCenter();
+
+	pasteJsonAction(rootJ);
+}
+
+void RackWidget::loadSelectionDialog() {
+	std::string dir = settings::lastSelectionDirectory;
+
+	// Use fallback <Rack user dir>/selections
+	if (dir == "" || !system::isDirectory(dir)) {
+		dir = asset::user("selections");
+		system::createDirectory(dir);
+	}
+
+	osdialog_filters* filters = osdialog_filters_parse(SELECTION_FILTERS);
+	DEFER({osdialog_filters_free(filters);});
+
+	char* pathC = osdialog_file(OSDIALOG_OPEN, dir.c_str(), NULL, filters);
+	if (!pathC) {
+		// Cancel silently
+		return;
+	}
+	std::string path = pathC;
+	std::free(pathC);
+
+	try {
+		loadSelection(path);
+	}
+	catch (Exception& e) {
+		osdialog_message(OSDIALOG_WARNING, OSDIALOG_OK, e.what());
+	}
+
+	settings::lastSelectionDirectory = system::getDirectory(path);
+}
+
+void RackWidget::saveSelection(std::string path) {
+	INFO("Saving selection %s", path.c_str());
+
+	json_t* rootJ = selectionToJson();
+	assert(rootJ);
+	DEFER({json_decref(rootJ);});
+
+	engine::Module::jsonStripIds(rootJ);
+
+	FILE* file = std::fopen(path.c_str(), "w");
+	if (!file) {
+		std::string message = string::f(string::translate("RackWidget.saveSelectionFailed"), path);
+		osdialog_message(OSDIALOG_WARNING, OSDIALOG_OK, message.c_str());
+		return;
+	}
+	DEFER({std::fclose(file);});
+
+	json_dumpf(rootJ, file, JSON_INDENT(2));
+}
+
+void RackWidget::saveSelectionDialog() {
+	std::string dir = settings::lastSelectionDirectory;
+
+	// Use fallback <Rack user dir>/selections
+	if (dir == "" || !system::isDirectory(dir)) {
+		dir = asset::user("selections");
+		system::createDirectory(dir);
+	}
+
+	osdialog_filters* filters = osdialog_filters_parse(SELECTION_FILTERS);
+	DEFER({osdialog_filters_free(filters);});
+
+	char* pathC = osdialog_file(OSDIALOG_SAVE, dir.c_str(), "Untitled.vcvs", filters);
+	if (!pathC) {
+		// No path selected
+		return;
+	}
+	std::string path = pathC;
+	std::free(pathC);
+
+	// Automatically append .vcvs extension
+	if (system::getExtension(path) != ".vcvs")
+		path += ".vcvs";
+
+	saveSelection(path);
+
+	settings::lastSelectionDirectory = system::getDirectory(path);
+}
+
+void RackWidget::copyClipboardSelection() {
+	json_t* rootJ = selectionToJson();
+	DEFER({json_decref(rootJ);});
+	char* moduleJson = json_dumps(rootJ, JSON_INDENT(2));
+	DEFER({std::free(moduleJson);});
+	glfwSetClipboardString(APP->window->win, moduleJson);
+}
+
+void RackWidget::resetSelectionAction() {
+	history::ComplexAction* complexAction = new history::ComplexAction;
+	complexAction->name = string::translate("RackWidget.history.resetModules");
+
+	for (ModuleWidget* mw : getSelected()) {
+		assert(mw->module);
+
+		// history::ModuleChange
+		history::ModuleChange* h = new history::ModuleChange;
+		h->moduleId = mw->module->id;
+		h->oldModuleJ = mw->toJson();
+
+		APP->engine->resetModule(mw->module);
+
+		h->newModuleJ = mw->toJson();
+		complexAction->push(h);
+	}
+
+	APP->history->push(complexAction);
+}
+
+void RackWidget::randomizeSelectionAction() {
+	history::ComplexAction* complexAction = new history::ComplexAction;
+	complexAction->name = string::translate("RackWidget.history.randomizeModules");
+
+	for (ModuleWidget* mw : getSelected()) {
+		assert(mw->module);
+
+		// history::ModuleChange
+		history::ModuleChange* h = new history::ModuleChange;
+		h->moduleId = mw->module->id;
+		h->oldModuleJ = mw->toJson();
+
+		APP->engine->randomizeModule(mw->module);
+
+		h->newModuleJ = mw->toJson();
+		complexAction->push(h);
+	}
+
+	APP->history->push(complexAction);
+}
+
+void RackWidget::disconnectSelectionAction() {
+	history::ComplexAction* complexAction = new history::ComplexAction;
+	complexAction->name = string::translate("RackWidget.history.disconnectCables");
+
+	for (ModuleWidget* mw : getSelected()) {
+		mw->appendDisconnectActions(complexAction);
+	}
+
+	if (!complexAction->isEmpty())
+		APP->history->push(complexAction);
+	else
+		delete complexAction;
+}
+
+void RackWidget::cloneSelectionAction(bool cloneCables) {
+	json_t* rootJ = selectionToJson(cloneCables);
+	DEFER({json_decref(rootJ);});
+
+	history::ComplexAction* complexAction = new history::ComplexAction;
+	complexAction->name = string::translate("RackWidget.history.duplicateModules");
+	DEFER({
+		if (!complexAction->isEmpty())
+			APP->history->push(complexAction);
+		else
+			delete complexAction;
+	});
+
+	auto p = RackWidget_pasteJson(this, rootJ, complexAction);
+
+	// Clone cables attached to inputs of selected modules but outputs of non-selected modules
+	if (cloneCables) {
+		for (CableWidget* cw : getCompleteCables()) {
+			auto inputIt = p.newModules.find(cw->getCable()->inputModule->id);
+			if (inputIt == p.newModules.end())
+				continue;
+
+			auto outputIt = p.newModules.find(cw->getCable()->outputModule->id);
+			if (outputIt != p.newModules.end())
+				continue;
+
+			engine::Module* clonedInputModule = inputIt->second->module;
+
+			// Create cable attached to cloned ModuleWidget's input
+			engine::Cable* clonedCable = new engine::Cable;
+			clonedCable->inputModule = clonedInputModule;
+			clonedCable->inputId = cw->cable->inputId;
+			clonedCable->outputModule = cw->cable->outputModule;
+			clonedCable->outputId = cw->cable->outputId;
+			APP->engine->addCable(clonedCable);
+
+			app::CableWidget* clonedCw = new app::CableWidget;
+			clonedCw->setCable(clonedCable);
+			clonedCw->color = cw->color;
+			APP->scene->rack->addCable(clonedCw);
+
+			// history::CableAdd
+			history::CableAdd* hca = new history::CableAdd;
+			hca->setCable(clonedCw);
+			complexAction->push(hca);
+		}
+	}
+}
+
+void RackWidget::bypassSelectionAction(bool bypassed) {
+	history::ComplexAction* complexAction = new history::ComplexAction;
+	complexAction->name = bypassed ? string::translate("RackWidget.history.bypassModules") : string::translate("RackWidget.history.unbypassModules");
+
+	for (ModuleWidget* mw : getSelected()) {
+		assert(mw->module);
+		if (mw->module->isBypassed() == bypassed)
 			continue;
 
-		APP->engine->removeCable(cw->cable);
+		// history::ModuleBypass
+		history::ModuleBypass* h = new history::ModuleBypass;
+		h->moduleId = mw->module->id;
+		h->bypassed = bypassed;
+		complexAction->push(h);
+
+		APP->engine->bypassModule(mw->module, bypassed);
 	}
-	incompleteCable = NULL;
-	cableContainer->clearChildren();
+
+	if (!complexAction->isEmpty())
+		APP->history->push(complexAction);
+	else
+		delete complexAction;
+}
+
+bool RackWidget::isSelectionBypassed() {
+	for (ModuleWidget* mw : getSelected()) {
+		if (!mw->getModule()->isBypassed())
+			return false;
+	}
+	return true;
+}
+
+void RackWidget::deleteSelectionAction() {
+	history::ComplexAction* complexAction = new history::ComplexAction;
+	complexAction->name = string::translate("RackWidget.history.deleteModules");
+
+	// Copy selected set since removing ModuleWidgets modifies it.
+	std::set<ModuleWidget*> selectedModules = getSelected();
+	for (ModuleWidget* mw : selectedModules) {
+		mw->appendDisconnectActions(complexAction);
+
+		// history::ModuleRemove
+		history::ModuleRemove* moduleRemove = new history::ModuleRemove;
+		moduleRemove->setModule(mw);
+		complexAction->push(moduleRemove);
+
+		removeModule(mw);
+		delete mw;
+	}
+
+	APP->history->push(complexAction);
+}
+
+bool RackWidget::requestSelectionPos(math::Vec delta) {
+	// Calculate new positions
+	std::map<widget::Widget*, math::Rect> mwBoxes;
+	for (ModuleWidget* mw : getSelected()) {
+		math::Rect mwBox = mw->box;
+		mwBox.pos += delta;
+		mwBoxes[mw] = mwBox;
+	}
+
+	// Check intersection with other modules
+	for (widget::Widget* w2 : internal->moduleContainer->children) {
+		// Don't intersect with selected modules
+		auto it = mwBoxes.find(w2);
+		if (it != mwBoxes.end())
+			continue;
+		math::Rect w2Box = w2->box;
+		// Check intersection with all selected modules
+		for (const auto& pair : mwBoxes) {
+			if (pair.second.intersects(w2Box))
+				return false;
+		}
+	}
+
+	// Accept requested position
+	for (const auto& pair : mwBoxes) {
+		pair.first->setPosition(pair.second.pos);
+	}
+	updateExpanders();
+	return true;
+}
+
+void RackWidget::setSelectionPosNearest(math::Vec delta) {
+	eachNearestGridPos(delta, [&](math::Vec delta) -> bool {
+		return requestSelectionPos(delta);
+	});
+}
+
+void RackWidget::appendSelectionContextMenu(ui::Menu* menu) {
+	int n = getSelected().size();
+	menu->addChild(createMenuLabel(n == 1 ? string::translate("RackWidget.selectedOne") : string::f(string::translate("RackWidget.selectedMany"), n)));
+
+	// Enable alwaysConsume of menu items if the number of selected modules changes
+
+	// Select all
+	menu->addChild(createMenuItem(string::translate("RackWidget.selectAll"), widget::getKeyCommandName(GLFW_KEY_A, RACK_MOD_CTRL), [=]() {
+		selectAll();
+	}, false, true));
+
+	// Deselect
+	menu->addChild(createMenuItem(string::translate("RackWidget.deselect"), widget::getKeyCommandName(GLFW_KEY_A, RACK_MOD_CTRL | GLFW_MOD_SHIFT), [=]() {
+		deselectAll();
+	}, n == 0, true));
+
+	// Copy
+	menu->addChild(createMenuItem(string::translate("RackWidget.copy"), widget::getKeyCommandName(GLFW_KEY_C, RACK_MOD_CTRL), [=]() {
+		copyClipboardSelection();
+	}, n == 0));
+
+	// Paste
+	menu->addChild(createMenuItem(string::translate("RackWidget.paste"), widget::getKeyCommandName(GLFW_KEY_V, RACK_MOD_CTRL), [=]() {
+		pasteClipboardAction();
+	}, false, true));
+
+	// Save
+	menu->addChild(createMenuItem(string::translate("RackWidget.saveAs"), "", [=]() {
+		saveSelectionDialog();
+	}, n == 0));
+
+	// Initialize
+	menu->addChild(createMenuItem(string::translate("RackWidget.initialize"), widget::getKeyCommandName(GLFW_KEY_I, RACK_MOD_CTRL), [=]() {
+		resetSelectionAction();
+	}, n == 0));
+
+	// Randomize
+	menu->addChild(createMenuItem(string::translate("RackWidget.randomize"), widget::getKeyCommandName(GLFW_KEY_R, RACK_MOD_CTRL), [=]() {
+		randomizeSelectionAction();
+	}, n == 0));
+
+	// Disconnect cables
+	menu->addChild(createMenuItem(string::translate("RackWidget.disconnectCables"), widget::getKeyCommandName(GLFW_KEY_U, RACK_MOD_CTRL), [=]() {
+		disconnectSelectionAction();
+	}, n == 0));
+
+	// Bypass
+	std::string bypassText = widget::getKeyCommandName(GLFW_KEY_E, RACK_MOD_CTRL);
+	bool bypassed = (n > 0) && isSelectionBypassed();
+	if (bypassed)
+		bypassText += " " CHECKMARK_STRING;
+	menu->addChild(createMenuItem(string::translate("RackWidget.bypass"), bypassText, [=]() {
+		bypassSelectionAction(!bypassed);
+	}, n == 0, true));
+
+	// Duplicate
+	menu->addChild(createMenuItem(string::translate("RackWidget.duplicate"), widget::getKeyCommandName(GLFW_KEY_D, RACK_MOD_CTRL), [=]() {
+		cloneSelectionAction(false);
+	}, n == 0));
+
+	// Duplicate with cables
+	menu->addChild(createMenuItem("└ " + string::translate("RackWidget.duplicateWithCables"), widget::getKeyCommandName(GLFW_KEY_D, RACK_MOD_CTRL | GLFW_MOD_SHIFT), [=]() {
+		cloneSelectionAction(true);
+	}, n == 0));
+
+	// Delete
+	menu->addChild(createMenuItem(string::translate("RackWidget.delete"), widget::getKeyCommandName(GLFW_KEY_BACKSPACE, 0) + "/" + widget::getKeyCommandName(GLFW_KEY_DELETE, 0), [=]() {
+		deleteSelectionAction();
+	}, n == 0, true));
+}
+
+void RackWidget::clearCables() {
+	// Since cables manage plugs, all plugs will be removed from plugContainer
+	internal->cableContainer->clearChildren();
 }
 
 void RackWidget::clearCablesAction() {
 	// Add CableRemove for every cable to a ComplexAction
 	history::ComplexAction* complexAction = new history::ComplexAction;
-	complexAction->name = "clear cables";
+	complexAction->name = string::translate("RackWidget.history.clearCables");
 
-	for (widget::Widget* w : cableContainer->children) {
-		CableWidget* cw = dynamic_cast<CableWidget*>(w);
-		assert(cw);
-		if (!cw->isComplete())
-			continue;
-
+	for (CableWidget* cw : getCompleteCables()) {
 		// history::CableRemove
 		history::CableRemove* h = new history::CableRemove;
 		h->setCable(cw);
 		complexAction->push(h);
 	}
 
-	APP->history->push(complexAction);
+	if (!complexAction->isEmpty())
+		APP->history->push(complexAction);
+	else
+		delete complexAction;
+
 	clearCables();
 }
 
 void RackWidget::clearCablesOnPort(PortWidget* port) {
 	for (CableWidget* cw : getCablesOnPort(port)) {
-		// Check if cable is connected to port
-		if (cw == incompleteCable) {
-			incompleteCable = NULL;
-			cableContainer->removeChild(cw);
-		}
-		else {
-			removeCable(cw);
-		}
+		removeCable(cw);
 		delete cw;
 	}
 }
 
-void RackWidget::addCable(CableWidget* w) {
-	assert(w->isComplete());
-	APP->engine->addCable(w->cable);
-	cableContainer->addChild(w);
+void RackWidget::addCable(CableWidget* cw) {
+	internal->cableContainer->addChild(cw);
 }
 
-void RackWidget::removeCable(CableWidget* w) {
-	assert(w->isComplete());
-	APP->engine->removeCable(w->cable);
-	cableContainer->removeChild(w);
+void RackWidget::removeCable(CableWidget* cw) {
+	internal->cableContainer->removeChild(cw);
 }
 
-void RackWidget::setIncompleteCable(CableWidget* w) {
-	if (incompleteCable) {
-		cableContainer->removeChild(incompleteCable);
-		delete incompleteCable;
-		incompleteCable = NULL;
-	}
-	if (w) {
-		cableContainer->addChild(w);
-		incompleteCable = w;
-	}
-}
-
-CableWidget* RackWidget::releaseIncompleteCable() {
-	if (!incompleteCable)
-		return NULL;
-
-	CableWidget* cw = incompleteCable;
-	cableContainer->removeChild(incompleteCable);
-	incompleteCable = NULL;
-	return cw;
-}
-
-CableWidget* RackWidget::getTopCable(PortWidget* port) {
-	for (auto it = cableContainer->children.rbegin(); it != cableContainer->children.rend(); it++) {
+CableWidget* RackWidget::getIncompleteCable() {
+	for (auto it = internal->cableContainer->children.rbegin(); it != internal->cableContainer->children.rend(); it++) {
 		CableWidget* cw = dynamic_cast<CableWidget*>(*it);
 		assert(cw);
-		// Ignore incomplete cables
 		if (!cw->isComplete())
-			continue;
-		if (cw->inputPort == port || cw->outputPort == port)
 			return cw;
 	}
 	return NULL;
 }
 
-CableWidget* RackWidget::getCable(int cableId) {
-	for (widget::Widget* w : cableContainer->children) {
+PlugWidget* RackWidget::getTopPlug(PortWidget* port) {
+	assert(port);
+	for (auto it = internal->plugContainer->children.rbegin(); it != internal->plugContainer->children.rend(); it++) {
+		PlugWidget* plug = dynamic_cast<PlugWidget*>(*it);
+		assert(plug);
+		CableWidget* cw = plug->getCable();
+		PortWidget* port2 = cw->getPort(plug->getType());
+		if (port2 == port)
+			return plug;
+	}
+	return NULL;
+}
+
+CableWidget* RackWidget::getTopCable(PortWidget* port) {
+	PlugWidget* plug = getTopPlug(port);
+	if (plug)
+		return plug->getCable();
+	return NULL;
+}
+
+CableWidget* RackWidget::getCable(int64_t cableId) {
+	for (widget::Widget* w : internal->cableContainer->children) {
 		CableWidget* cw = dynamic_cast<CableWidget*>(w);
 		assert(cw);
+		if (!cw->cable)
+			continue;
 		if (cw->cable->id == cableId)
 			return cw;
 	}
 	return NULL;
 }
 
-std::list<CableWidget*> RackWidget::getCablesOnPort(PortWidget* port) {
-	assert(port);
-	std::list<CableWidget*> cables;
-	for (widget::Widget* w : cableContainer->children) {
+CableWidget* RackWidget::getCable(PortWidget* outputPort, PortWidget* inputPort) {
+	for (widget::Widget* w : internal->cableContainer->children) {
 		CableWidget* cw = dynamic_cast<CableWidget*>(w);
 		assert(cw);
-		if (cw->inputPort == port || cw->outputPort == port) {
-			cables.push_back(cw);
-		}
+		if (cw->outputPort == outputPort && cw->inputPort == inputPort)
+			return cw;
 	}
-	return cables;
+	return NULL;
+}
+
+std::vector<CableWidget*> RackWidget::getCables() {
+	std::vector<CableWidget*> cws;
+	cws.reserve(internal->cableContainer->children.size());
+	for (widget::Widget* w : internal->cableContainer->children) {
+		CableWidget* cw = dynamic_cast<CableWidget*>(w);
+		assert(cw);
+		cws.push_back(cw);
+	}
+	return cws;
+}
+
+std::vector<CableWidget*> RackWidget::getCompleteCables() {
+	std::vector<CableWidget*> cws;
+	// Assume that most cables are complete, so pre-allocate and shrink vector.
+	cws.reserve(internal->cableContainer->children.size());
+	for (widget::Widget* w : internal->cableContainer->children) {
+		CableWidget* cw = dynamic_cast<CableWidget*>(w);
+		assert(cw);
+		if (cw->isComplete())
+			cws.push_back(cw);
+	}
+	cws.shrink_to_fit();
+	return cws;
+}
+
+std::vector<CableWidget*> RackWidget::getIncompleteCables() {
+	std::vector<CableWidget*> cws;
+	for (widget::Widget* w : internal->cableContainer->children) {
+		CableWidget* cw = dynamic_cast<CableWidget*>(w);
+		assert(cw);
+		if (!cw->isComplete())
+			cws.push_back(cw);
+	}
+	return cws;
+}
+
+std::vector<CableWidget*> RackWidget::getCablesOnPort(PortWidget* port) {
+	assert(port);
+	std::vector<CableWidget*> cws;
+	for (widget::Widget* w : internal->plugContainer->children) {
+		PlugWidget* plug = dynamic_cast<PlugWidget*>(w);
+		assert(plug);
+		CableWidget* cw = plug->getCable();
+		PortWidget* port2 = cw->getPort(plug->getType());
+		if (port2 == port)
+			cws.push_back(cw);
+	}
+	return cws;
+}
+
+std::vector<CableWidget*> RackWidget::getCompleteCablesOnPort(PortWidget* port) {
+	assert(port);
+	std::vector<CableWidget*> cws;
+	for (widget::Widget* w : internal->plugContainer->children) {
+		PlugWidget* plug = dynamic_cast<PlugWidget*>(w);
+		assert(plug);
+		CableWidget* cw = plug->getCable();
+		if (!cw->isComplete())
+			continue;
+		PortWidget* port2 = cw->getPort(plug->getType());
+		if (port2 == port)
+			cws.push_back(cw);
+	}
+	return cws;
+}
+
+
+int RackWidget::getNextCableColorId() {
+	return internal->nextCableColorId;
+}
+
+
+void RackWidget::setNextCableColorId(int id) {
+	internal->nextCableColorId = id;
+}
+
+
+NVGcolor RackWidget::getNextCableColor() {
+	if (settings::cableColors.empty())
+		return color::WHITE;
+
+	int id = internal->nextCableColorId;
+	if (settings::cableAutoRotate) {
+		internal->nextCableColorId++;
+	}
+	if (id >= (int) settings::cableColors.size())
+		id = 0;
+	if (internal->nextCableColorId >= (int) settings::cableColors.size())
+		internal->nextCableColorId = 0;
+	return settings::cableColors[id];
+}
+
+
+ParamWidget* RackWidget::getTouchedParam() {
+	return touchedParam;
+}
+
+
+void RackWidget::setTouchedParam(ParamWidget* pw) {
+	touchedParam = pw;
+}
+
+
+void RackWidget::updateExpanders() {
+	for (widget::Widget* w : internal->moduleContainer->children) {
+		ModuleWidget* mw = (ModuleWidget*) w;
+
+		math::Vec pLeft = mw->getGridBox().getTopLeft();
+		math::Vec pRight = mw->getGridBox().getTopRight();
+		ModuleWidget* mwLeft = NULL;
+		ModuleWidget* mwRight = NULL;
+
+		// Find adjacent modules
+		for (widget::Widget* w2 : internal->moduleContainer->children) {
+			ModuleWidget* mw2 = (ModuleWidget*) w2;
+			if (mw2 == mw)
+				continue;
+
+			math::Vec p2Left = mw2->getGridBox().getTopLeft();
+			math::Vec p2Right = mw2->getGridBox().getTopRight();
+
+			// Check if this is a left module
+			if (p2Right.equals(pLeft))
+				mwLeft = mw2;
+
+			// Check if this is a right module
+			if (p2Left.equals(pRight))
+				mwRight = mw2;
+		}
+
+		mw->module->leftExpander.moduleId = mwLeft ? mwLeft->module->id : -1;
+		mw->module->rightExpander.moduleId = mwRight ? mwRight->module->id : -1;
+	}
 }
 
 

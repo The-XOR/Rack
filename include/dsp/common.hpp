@@ -1,4 +1,5 @@
 #pragma once
+#include <common.hpp>
 #include <math.hpp>
 #include <simd/functions.hpp>
 
@@ -6,7 +7,7 @@
 namespace rack {
 
 
-/** Digital signal processing routines
+/** Digital signal processing routines and classes
 */
 namespace dsp {
 
@@ -46,7 +47,7 @@ T amplitudeToDb(T amp) {
 
 template <typename T>
 T dbToAmplitude(T db) {
-	return std::pow(10, db / 20);
+	return simd::pow(10, db / 20);
 }
 
 // Functions for parameter scaling

@@ -1,5 +1,6 @@
 #include <ui/Menu.hpp>
 
+
 namespace rack {
 namespace ui {
 
@@ -53,12 +54,12 @@ void Menu::step() {
 }
 
 void Menu::draw(const DrawArgs& args) {
-	bndMenuBackground(args.vg, 0.0, 0.0, box.size.x, box.size.y, BND_CORNER_NONE);
+	bndMenuBackground(args.vg, 0.0, 0.0, box.size.x, box.size.y, cornerFlags);
 	Widget::draw(args);
 }
 
-void Menu::onHoverScroll(const event::HoverScroll& e) {
-	if (parent && !parent->box.isContaining(box))
+void Menu::onHoverScroll(const HoverScrollEvent& e) {
+	if (parent && !parent->box.contains(box))
 		box.pos.y += e.scrollDelta.y;
 }
 

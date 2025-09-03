@@ -1,18 +1,15 @@
 #pragma once
 #include <app/common.hpp>
-#include <widget/OpaqueWidget.hpp>
+#include <widget/Widget.hpp>
+#include <ui/Menu.hpp>
 
 
 namespace rack {
 namespace app {
 
 
-struct MenuBar : widget::OpaqueWidget {
-	void draw(const DrawArgs& args) override;
-};
-
-
-MenuBar* createMenuBar();
+PRIVATE widget::Widget* createMenuBar();
+PRIVATE void appendLanguageMenu(ui::Menu* menu);
 
 
 } // namespace app

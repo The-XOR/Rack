@@ -1,345 +1,345 @@
 #include <audio.hpp>
 #include <string.hpp>
 #include <math.hpp>
-//#include <bridge.hpp>
-#include <system.hpp>
 
 
 namespace rack {
 namespace audio {
 
 
+static std::vector<std::pair<int, Driver*>> drivers;
+
+////////////////////
+// Driver
+////////////////////
+
+
+////////////////////
+// Device
+////////////////////
+
+void Device::subscribe(Port* port) {
+	std::lock_guard<std::mutex> lock(processMutex);
+	subscribed.insert(port);
+}
+
+void Device::unsubscribe(Port* port) {
+	std::lock_guard<std::mutex> lock(processMutex);
+	auto it = subscribed.find(port);
+	if (it != subscribed.end())
+		subscribed.erase(it);
+}
+
+void Device::processBuffer(const float* input, int inputStride, float* output, int outputStride, int frames) {
+	// Zero output since Ports might not write to all elements, or no Ports exist
+	std::fill_n(output, frames * outputStride, 0.f);
+
+	std::lock_guard<std::mutex> lock(processMutex);
+	for (Port* port : subscribed) {
+		// Setting the thread context should probably be the responsibility of Port, but because processInput() etc are overridden, this is the only good place for it.
+		contextSet(port->context);
+		port->processInput(input + port->inputOffset, inputStride, frames);
+	}
+	for (Port* port : subscribed) {
+		contextSet(port->context);
+		port->processBuffer(input + port->inputOffset, inputStride, output + port->outputOffset, outputStride, frames);
+	}
+	for (Port* port : subscribed) {
+		contextSet(port->context);
+		port->processOutput(output + port->outputOffset, outputStride, frames);
+	}
+}
+
+void Device::onStartStream() {
+	for (Port* port : subscribed) {
+		contextSet(port->context);
+		port->onStartStream();
+	}
+}
+
+void Device::onStopStream() {
+	for (Port* port : subscribed) {
+		contextSet(port->context);
+		port->onStopStream();
+	}
+}
+
+////////////////////
+// Port
+////////////////////
+
 Port::Port() {
-	setDriverId(RtAudio::UNSPECIFIED);
+	context = contextGet();
+	reset();
 }
 
 Port::~Port() {
-	closeStream();
+	setDeviceId(-1);
 }
 
-std::vector<int> Port::getDriverIds() {
-	std::vector<RtAudio::Api> apis;
-	RtAudio::getCompiledApi(apis);
-	std::vector<int> drivers;
-	for (RtAudio::Api api : apis) {
-		drivers.push_back((int) api);
-	}
-	// Add fake Bridge driver
-	//drivers.push_back(BRIDGE_DRIVER);
-	return drivers;
+void Port::reset() {
+	// Set default driver
+	setDriverId(-1);
 }
 
-std::string Port::getDriverName(int driverId) {
-	switch (driverId) {
-		case RtAudio::UNSPECIFIED: return "Unspecified";
-		case RtAudio::LINUX_ALSA: return "ALSA";
-		case RtAudio::LINUX_PULSE: return "PulseAudio";
-		case RtAudio::LINUX_OSS: return "OSS";
-		case RtAudio::UNIX_JACK: return "JACK";
-		case RtAudio::MACOSX_CORE: return "Core Audio";
-		case RtAudio::WINDOWS_WASAPI: return "WASAPI";
-		case RtAudio::WINDOWS_ASIO: return "ASIO";
-		case RtAudio::WINDOWS_DS: return "DirectSound";
-		case RtAudio::RTAUDIO_DUMMY: return "Dummy Audio";
-		//case BRIDGE_DRIVER: return "Bridge";
-		default: return "Unknown";
-	}
+Driver* Port::getDriver() {
+	return driver;
+}
+
+int Port::getDriverId() {
+	return driverId;
 }
 
 void Port::setDriverId(int driverId) {
-	// Close device
-	setDeviceId(-1, 0);
+	// Unset device and driver
+	setDeviceId(-1);
+	driver = NULL;
+	this->driverId = -1;
 
-	// Close driver
-	if (rtAudio) {
-		delete rtAudio;
-		rtAudio = NULL;
+	// Find driver by ID
+	driver = audio::getDriver(driverId);
+	if (driver) {
+		this->driverId = driverId;
 	}
-	this->driverId = 0;
+	else if (!drivers.empty()) {
+		// Set first driver as default
+		driver = drivers[0].second;
+		this->driverId = drivers[0].first;
+	}
+	else {
+		// No fallback drivers
+		return;
+	}
 
-	// Open driver
-	if (driverId >= 0) {
-		rtAudio = new RtAudio((RtAudio::Api) driverId);
-		this->driverId = (int) rtAudio->getCurrentApi();
+	// Set default device if exists
+	try {
+		int defaultDeviceId = driver->getDefaultDeviceId();
+		if (defaultDeviceId >= 0)
+			setDeviceId(defaultDeviceId);
 	}
-/*	else if (driverId == BRIDGE_DRIVER) {
-		this->driverId = BRIDGE_DRIVER;
-	}*/
+	catch (Exception& e) {
+		WARN("Audio port could not get default device ID: %s", e.what());
+	}
 }
 
-int Port::getDeviceCount() {
-	if (rtAudio) {
-		return rtAudio->getDeviceCount();
+std::string Port::getDriverName() {
+	if (!driver)
+		return "";
+	try {
+		return driver->getName();
 	}
-	/*else if (driverId == BRIDGE_DRIVER) {
-		return BRIDGE_NUM_PORTS;
-	}*/
-	return 0;
+	catch (Exception& e) {
+		WARN("Audio port could not get driver name: %s", e.what());
+		return "";
+	}
 }
 
-bool Port::getDeviceInfo(int deviceId, RtAudio::DeviceInfo* deviceInfo) {
-	if (!deviceInfo)
-		return false;
+Device* Port::getDevice() {
+	return device;
+}
 
-	if (rtAudio) {
-		if (deviceId == this->deviceId) {
-			*deviceInfo = this->deviceInfo;
-			return true;
+std::vector<int> Port::getDeviceIds() {
+	if (!driver)
+		return {};
+	try {
+		return driver->getDeviceIds();
+	}
+	catch (Exception& e) {
+		WARN("Audio port could not get device IDs: %s", e.what());
+		return {};
+	}
+}
+
+int Port::getDeviceId() {
+	return deviceId;
+}
+
+void Port::setDeviceId(int deviceId) {
+	if (!driver)
+		return;
+	if (deviceId == this->deviceId)
+		return;
+	// Destroy device
+	if (this->deviceId >= 0) {
+		try {
+			driver->unsubscribe(this->deviceId, this);
+			onStopStream();
 		}
-		else {
-			try {
-				*deviceInfo = rtAudio->getDeviceInfo(deviceId);
-				return true;
-			}
-			catch (RtAudioError& e) {
-				WARN("Failed to query RtAudio device: %s", e.what());
-			}
+		catch (Exception& e) {
+			WARN("Audio port could not unsubscribe from device: %s", e.what());
 		}
 	}
+	device = NULL;
+	this->deviceId = -1;
 
-	return false;
+	// Create device
+	if (deviceId >= 0) {
+		try {
+			device = driver->subscribe(deviceId, this);
+			if (device) {
+				this->deviceId = deviceId;
+				onStartStream();
+			}
+		}
+		catch (Exception& e) {
+			WARN("Audio port could not subscribe to device: %s", e.what());
+		}
+	}
 }
 
-int Port::getDeviceChannels(int deviceId) {
-	if (deviceId < 0)
+int Port::getDeviceNumInputs(int deviceId) {
+	if (!driver)
 		return 0;
-
-	if (rtAudio) {
-		RtAudio::DeviceInfo deviceInfo;
-		if (getDeviceInfo(deviceId, &deviceInfo))
-			return std::max((int) deviceInfo.inputChannels, (int) deviceInfo.outputChannels);
+	try {
+		return driver->getDeviceNumInputs(deviceId);
 	}
-/*	else if (driverId == BRIDGE_DRIVER) {
-		return std::max(BRIDGE_OUTPUTS, BRIDGE_INPUTS);
-	}*/
-	return 0;
+	catch (Exception& e) {
+		WARN("Audio port could not get device number of inputs: %s", e.what());
+		return 0;
+	}
+}
+
+int Port::getDeviceNumOutputs(int deviceId) {
+	if (!driver)
+		return 0;
+	try {
+		return driver->getDeviceNumOutputs(deviceId);
+	}
+	catch (Exception& e) {
+		WARN("Audio port could not get device number of outputs: %s", e.what());
+		return 0;
+	}
 }
 
 std::string Port::getDeviceName(int deviceId) {
-	if (deviceId < 0)
+	if (!driver)
 		return "";
-
-	if (rtAudio) {
-		RtAudio::DeviceInfo deviceInfo;
-		if (getDeviceInfo(deviceId, &deviceInfo))
-			return deviceInfo.name;
+	try {
+		return driver->getDeviceName(deviceId);
 	}
-	/*else if (driverId == BRIDGE_DRIVER) {
-		return string::f("%d", deviceId + 1);
-	}*/
-	return "";
-}
-
-std::string Port::getDeviceDetail(int deviceId, int offset) {
-	if (deviceId < 0)
-		return "";
-
-	if (rtAudio) {
-		RtAudio::DeviceInfo deviceInfo;
-		if (getDeviceInfo(deviceId, &deviceInfo)) {
-			std::string deviceDetail = string::f("%s (", deviceInfo.name.c_str());
-			if (offset < (int) deviceInfo.inputChannels)
-				deviceDetail += string::f("%d-%d in", offset + 1, std::min(offset + maxChannels, (int) deviceInfo.inputChannels));
-			if (offset < (int) deviceInfo.inputChannels && offset < (int) deviceInfo.outputChannels)
-				deviceDetail += ", ";
-			if (offset < (int) deviceInfo.outputChannels)
-				deviceDetail += string::f("%d-%d out", offset + 1, std::min(offset + maxChannels, (int) deviceInfo.outputChannels));
-			deviceDetail += ")";
-			return deviceDetail;
-		}
+	catch (Exception& e) {
+		WARN("Audio port could not get device name: %s", e.what());
+		return 0;
 	}
-/*	else if (driverId == BRIDGE_DRIVER) {
-		return string::f("Port %d", deviceId + 1);
-	}*/
-	return "";
 }
 
-void Port::setDeviceId(int deviceId, int offset) {
-	closeStream();
-	this->deviceId = deviceId;
-	this->offset = offset;
-	openStream();
-}
-
-std::vector<int> Port::getSampleRates() {
-	if (rtAudio) {
-		try {
-			RtAudio::DeviceInfo deviceInfo = rtAudio->getDeviceInfo(deviceId);
-			std::vector<int> sampleRates(deviceInfo.sampleRates.begin(), deviceInfo.sampleRates.end());
-			return sampleRates;
-		}
-		catch (RtAudioError& e) {
-			WARN("Failed to query RtAudio device: %s", e.what());
-		}
+std::set<float> Port::getSampleRates() {
+	if (!device)
+		return {};
+	try {
+		return device->getSampleRates();
 	}
-	return {};
+	catch (Exception& e) {
+		WARN("Audio port could not get device sample rates: %s", e.what());
+		return {};
+	}
 }
 
-void Port::setSampleRate(int sampleRate) {
-	if (sampleRate == this->sampleRate)
+float Port::getSampleRate() {
+	if (!device)
+		return 0;
+	try {
+		return device->getSampleRate();
+	}
+	catch (Exception& e) {
+		WARN("Audio port could not get device sample rate: %s", e.what());
+		return 0;
+	}
+}
+
+void Port::setSampleRate(float sampleRate) {
+	if (!device)
 		return;
-	closeStream();
-	this->sampleRate = sampleRate;
-	openStream();
+	try {
+		device->setSampleRate(sampleRate);
+	}
+	catch (Exception& e) {
+		WARN("Audio port could not set device sample rate: %s", e.what());
+	}
 }
 
-std::vector<int> Port::getBlockSizes() {
-	if (rtAudio) {
-		return {64, 128, 256, 512, 1024, 2048, 4096};
+std::set<int> Port::getBlockSizes() {
+	if (!device)
+		return {};
+	try {
+		return device->getBlockSizes();
 	}
-	return {};
+	catch (Exception& e) {
+		WARN("Audio port could not get device block sizes: %s", e.what());
+		return {};
+	}
+}
+
+int Port::getBlockSize() {
+	if (!device)
+		return 0;
+	try {
+		return device->getBlockSize();
+	}
+	catch (Exception& e) {
+		WARN("Audio port could not get device block size: %s", e.what());
+		return 0;
+	}
 }
 
 void Port::setBlockSize(int blockSize) {
-	if (blockSize == this->blockSize)
+	if (!device)
 		return;
-	closeStream();
-	this->blockSize = blockSize;
-	openStream();
-}
-
-void Port::setChannels(int numOutputs, int numInputs) {
-	this->numOutputs = numOutputs;
-	this->numInputs = numInputs;
-	onChannelsChange();
-}
-
-
-static int rtCallback(void* outputBuffer, void* inputBuffer, unsigned int nFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
-	Port* port = (Port*) userData;
-	assert(port);
-	// Exploit the stream time to run code on startup of the audio thread
-	if (streamTime == 0.0) {
-		system::setThreadName("Audio");
-		// system::setThreadRealTime();
+	try {
+		device->setBlockSize(blockSize);
 	}
-	port->processStream((const float*) inputBuffer, (float*) outputBuffer, nFrames);
-	return 0;
+	catch (Exception& e) {
+		WARN("Audio port could not set device block size: %s", e.what());
+	}
 }
 
-void Port::openStream() {
-	if (deviceId < 0)
-		return;
-
-	if (rtAudio) {
-		// Open new device
-		try {
-			deviceInfo = rtAudio->getDeviceInfo(deviceId);
-		}
-		catch (RtAudioError& e) {
-			WARN("Failed to query RtAudio device: %s", e.what());
-			return;
-		}
-
-		if (rtAudio->isStreamOpen())
-			return;
-
-		setChannels(math::clamp((int) deviceInfo.outputChannels - offset, 0, maxChannels), math::clamp((int) deviceInfo.inputChannels - offset, 0, maxChannels));
-
-		if (numOutputs == 0 && numInputs == 0) {
-			WARN("RtAudio device %d has 0 inputs and 0 outputs", deviceId);
-			return;
-		}
-
-		RtAudio::StreamParameters outParameters;
-		outParameters.deviceId = deviceId;
-		outParameters.nChannels = numOutputs;
-		outParameters.firstChannel = offset;
-
-		RtAudio::StreamParameters inParameters;
-		inParameters.deviceId = deviceId;
-		inParameters.nChannels = numInputs;
-		inParameters.firstChannel = offset;
-
-		RtAudio::StreamOptions options;
-		options.flags |= RTAUDIO_JACK_DONT_CONNECT;
-		options.streamName = "VCV Rack";
-
-		int closestSampleRate = deviceInfo.preferredSampleRate;
-		for (int sr : deviceInfo.sampleRates) {
-			if (std::abs(sr - sampleRate) < std::abs(closestSampleRate - sampleRate)) {
-				closestSampleRate = sr;
-			}
-		}
-
-		try {
-			INFO("Opening audio RtAudio device %d with %d in %d out", deviceId, numInputs, numOutputs);
-			rtAudio->openStream(
-			  numOutputs == 0 ? NULL : &outParameters,
-			  numInputs == 0 ? NULL : &inParameters,
-			  RTAUDIO_FLOAT32, closestSampleRate, (unsigned int*) &blockSize,
-			  &rtCallback, this, &options, NULL);
-		}
-		catch (RtAudioError& e) {
-			WARN("Failed to open RtAudio stream: %s", e.what());
-			return;
-		}
-
-		try {
-			INFO("Starting RtAudio stream %d", deviceId);
-			rtAudio->startStream();
-		}
-		catch (RtAudioError& e) {
-			WARN("Failed to start RtAudio stream: %s", e.what());
-			return;
-		}
-
-		// Update sample rate because this may have changed
-		this->sampleRate = rtAudio->getStreamSampleRate();
-		onOpenStream();
+int Port::getNumInputs() {
+	if (!device)
+		return 0;
+	try {
+		return math::clamp(device->getNumInputs() - inputOffset, 0, maxInputs);
 	}
-/*	else if (driverId == BRIDGE_DRIVER) {
-		setChannels(BRIDGE_OUTPUTS, BRIDGE_INPUTS);
-		bridgeAudioSubscribe(deviceId, this);
-	}*/
+	catch (Exception& e) {
+		WARN("Audio port could not get device number of inputs: %s", e.what());
+		return 0;
+	}
 }
 
-void Port::closeStream() {
-	setChannels(0, 0);
-
-	if (rtAudio) {
-		if (rtAudio->isStreamRunning()) {
-			INFO("Stopping RtAudio stream %d", deviceId);
-			try {
-				rtAudio->stopStream();
-			}
-			catch (RtAudioError& e) {
-				WARN("Failed to stop RtAudio stream %s", e.what());
-			}
-		}
-		if (rtAudio->isStreamOpen()) {
-			INFO("Closing RtAudio stream %d", deviceId);
-			try {
-				rtAudio->closeStream();
-			}
-			catch (RtAudioError& e) {
-				WARN("Failed to close RtAudio stream %s", e.what());
-			}
-		}
-		deviceInfo = RtAudio::DeviceInfo();
+int Port::getNumOutputs() {
+	if (!device)
+		return 0;
+	try {
+		return math::clamp(device->getNumOutputs() - outputOffset, 0, maxOutputs);
 	}
-/*	else if (driverId == BRIDGE_DRIVER) {
-		bridgeAudioUnsubscribe(deviceId, this);
-	}*/
-
-	onCloseStream();
+	catch (Exception& e) {
+		WARN("Audio port could not get device number of outputs: %s", e.what());
+		return 0;
+	}
 }
 
 json_t* Port::toJson() {
 	json_t* rootJ = json_object();
-	json_object_set_new(rootJ, "driver", json_integer(driverId));
-	std::string deviceName = getDeviceName(deviceId);
-	if (!deviceName.empty())
-		json_object_set_new(rootJ, "deviceName", json_string(deviceName.c_str()));
-	json_object_set_new(rootJ, "offset", json_integer(offset));
-	json_object_set_new(rootJ, "maxChannels", json_integer(maxChannels));
-	json_object_set_new(rootJ, "sampleRate", json_integer(sampleRate));
-	json_object_set_new(rootJ, "blockSize", json_integer(blockSize));
+	json_object_set_new(rootJ, "driver", json_integer(getDriverId()));
+
+	if (device) {
+		try {
+			std::string deviceName = device->getName();
+			json_object_set_new(rootJ, "deviceName", json_string(deviceName.c_str()));
+		}
+		catch (Exception& e) {
+			WARN("Audio port could not get device name: %s", e.what());
+		}
+	}
+
+	json_object_set_new(rootJ, "sampleRate", json_real(getSampleRate()));
+	json_object_set_new(rootJ, "blockSize", json_integer(getBlockSize()));
+	json_object_set_new(rootJ, "inputOffset", json_integer(inputOffset));
+	json_object_set_new(rootJ, "outputOffset", json_integer(outputOffset));
 	return rootJ;
 }
 
 void Port::fromJson(json_t* rootJ) {
-	closeStream();
+	setDriverId(-1);
 
 	json_t* driverJ = json_object_get(rootJ, "driver");
 	if (driverJ)
@@ -349,31 +349,71 @@ void Port::fromJson(json_t* rootJ) {
 	if (deviceNameJ) {
 		std::string deviceName = json_string_value(deviceNameJ);
 		// Search for device ID with equal name
-		for (int deviceId = 0; deviceId < getDeviceCount(); deviceId++) {
-			if (getDeviceName(deviceId) == deviceName) {
-				this->deviceId = deviceId;
+		for (int deviceId : getDeviceIds()) {
+			std::string deviceNameCurr = getDeviceName(deviceId);
+			if (deviceNameCurr == "")
+				continue;
+			if (deviceNameCurr == deviceName) {
+				setDeviceId(deviceId);
 				break;
 			}
 		}
 	}
 
-	json_t* offsetJ = json_object_get(rootJ, "offset");
-	if (offsetJ)
-		offset = json_integer_value(offsetJ);
-
-	json_t* maxChannelsJ = json_object_get(rootJ, "maxChannels");
-	if (maxChannelsJ)
-		maxChannels = json_integer_value(maxChannelsJ);
-
 	json_t* sampleRateJ = json_object_get(rootJ, "sampleRate");
 	if (sampleRateJ)
-		sampleRate = json_integer_value(sampleRateJ);
+		setSampleRate(json_number_value(sampleRateJ));
 
 	json_t* blockSizeJ = json_object_get(rootJ, "blockSize");
 	if (blockSizeJ)
-		blockSize = json_integer_value(blockSizeJ);
+		setBlockSize(json_integer_value(blockSizeJ));
 
-	openStream();
+	json_t* inputOffsetJ = json_object_get(rootJ, "inputOffset");
+	if (inputOffsetJ)
+		inputOffset = json_integer_value(inputOffsetJ);
+
+	json_t* outputOffsetJ = json_object_get(rootJ, "outputOffset");
+	if (outputOffsetJ)
+		outputOffset = json_integer_value(outputOffsetJ);
+}
+
+////////////////////
+// audio
+////////////////////
+
+void init() {
+}
+
+void destroy() {
+	for (auto& pair : drivers) {
+		delete pair.second;
+	}
+	drivers.clear();
+}
+
+void addDriver(int driverId, Driver* driver) {
+	assert(driver);
+	assert(driverId != -1);
+	drivers.push_back(std::make_pair(driverId, driver));
+}
+
+std::vector<int> getDriverIds() {
+	std::vector<int> driverIds;
+	for (auto& pair : drivers) {
+		driverIds.push_back(pair.first);
+	}
+	return driverIds;
+}
+
+Driver* getDriver(int driverId) {
+	if (driverId == -1)
+		return NULL;
+	// Search for driver by ID
+	for (auto& pair : drivers) {
+		if (pair.first == driverId)
+			return pair.second;
+	}
+	return NULL;
 }
 
 

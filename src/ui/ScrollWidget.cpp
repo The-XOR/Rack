@@ -1,30 +1,67 @@
 #include <ui/ScrollWidget.hpp>
-#include <app.hpp>
+#include <context.hpp>
 
 
 namespace rack {
 namespace ui {
 
 
+struct ScrollWidget::Internal {
+	bool scrolling = false;
+};
+
+
 ScrollWidget::ScrollWidget() {
+	internal = new Internal;
+
 	container = new widget::Widget;
 	addChild(container);
 
-	horizontalScrollBar = new ScrollBar;
-	horizontalScrollBar->orientation = ScrollBar::HORIZONTAL;
-	horizontalScrollBar->visible = false;
-	addChild(horizontalScrollBar);
+	horizontalScrollbar = new Scrollbar;
+	horizontalScrollbar->vertical = false;
+	horizontalScrollbar->hide();
+	addChild(horizontalScrollbar);
 
-	verticalScrollBar = new ScrollBar;
-	verticalScrollBar->orientation = ScrollBar::VERTICAL;
-	verticalScrollBar->visible = false;
-	addChild(verticalScrollBar);
+	verticalScrollbar = new Scrollbar;
+	verticalScrollbar->vertical = true;
+	verticalScrollbar->hide();
+	addChild(verticalScrollbar);
 }
+
+
+ScrollWidget::~ScrollWidget() {
+	delete internal;
+}
+
 
 void ScrollWidget::scrollTo(math::Rect r) {
 	math::Rect bound = math::Rect::fromMinMax(r.getBottomRight().minus(box.size), r.pos);
 	offset = offset.clampSafe(bound);
 }
+
+
+math::Rect ScrollWidget::getContainerOffsetBound() {
+	math::Rect r;
+	r.pos = containerBox.pos;
+	r.size = containerBox.size.minus(box.size);
+	return r;
+}
+
+
+math::Vec ScrollWidget::getHandleOffset() {
+	return offset.minus(containerBox.pos).div(getContainerOffsetBound().size);
+}
+
+
+math::Vec ScrollWidget::getHandleSize() {
+	return box.size.div(containerBox.size);
+}
+
+
+bool ScrollWidget::isScrolling() {
+	return internal->scrolling;
+}
+
 
 void ScrollWidget::draw(const DrawArgs& args) {
 	nvgScissor(args.vg, RECT_ARGS(args.clipBox));
@@ -32,84 +69,152 @@ void ScrollWidget::draw(const DrawArgs& args) {
 	nvgResetScissor(args.vg);
 }
 
+
 void ScrollWidget::step() {
 	Widget::step();
 
+	// Set containerBox cache
+	containerBox = container->getVisibleChildrenBoundingBox();
+
 	// Clamp scroll offset
-	math::Rect containerBox = container->getChildrenBoundingBox();
-	math::Rect offsetBounds = containerBox;
-	offsetBounds.size = offsetBounds.size.minus(box.size);
+	math::Rect offsetBounds = getContainerOffsetBound();
 	offset = offset.clamp(offsetBounds);
 
 	// Update the container's position from the offset
 	container->box.pos = offset.neg().round();
 
-	// Update scrollbar offsets and sizes
-	math::Vec scrollbarOffset = offset.minus(containerBox.pos).div(offsetBounds.size);
-	math::Vec scrollbarSize = box.size.div(containerBox.size);
-
-	horizontalScrollBar->visible = (0.0 < scrollbarSize.x && scrollbarSize.x < 1.0);
-	verticalScrollBar->visible = (0.0 < scrollbarSize.y && scrollbarSize.y < 1.0);
-	horizontalScrollBar->offset = scrollbarOffset.x;
-	verticalScrollBar->offset = scrollbarOffset.y;
-	horizontalScrollBar->size = scrollbarSize.x;
-	verticalScrollBar->size = scrollbarSize.y;
+	// Make scrollbars visible only if there is a positive range to scroll.
+	if (hideScrollbars) {
+		horizontalScrollbar->setVisible(false);
+		verticalScrollbar->setVisible(false);
+	}
+	else {
+		horizontalScrollbar->setVisible(offsetBounds.size.x > 0.f);
+		verticalScrollbar->setVisible(offsetBounds.size.y > 0.f);
+	}
 
 	// Reposition and resize scroll bars
-	math::Vec inner = box.size.minus(math::Vec(verticalScrollBar->box.size.x, horizontalScrollBar->box.size.y));
-	horizontalScrollBar->box.pos.y = inner.y;
-	verticalScrollBar->box.pos.x = inner.x;
-	horizontalScrollBar->box.size.x = verticalScrollBar->visible ? inner.x : box.size.x;
-	verticalScrollBar->box.size.y = horizontalScrollBar->visible ? inner.y : box.size.y;
+	math::Vec inner = box.size.minus(math::Vec(verticalScrollbar->box.size.x, horizontalScrollbar->box.size.y));
+	horizontalScrollbar->box.pos.y = inner.y;
+	verticalScrollbar->box.pos.x = inner.x;
+	horizontalScrollbar->box.size.x = verticalScrollbar->isVisible() ? inner.x : box.size.x;
+	verticalScrollbar->box.size.y = horizontalScrollbar->isVisible() ? inner.y : box.size.y;
 }
 
-void ScrollWidget::onButton(const event::Button& e) {
+
+void ScrollWidget::onHover(const HoverEvent& e) {
+	OpaqueWidget::onHover(e);
+
+	if (!e.mouseDelta.isZero()) {
+		internal->scrolling = false;
+	}
+}
+
+
+void ScrollWidget::onButton(const ButtonEvent& e) {
+	math::Rect offsetBound = getContainerOffsetBound();
+	// Check if scrollable
+	if (offsetBound.size.x > 0.f || offsetBound.size.y > 0.f) {
+		// Handle Alt-click before children, since most widgets consume Alt-click without needing to.
+		if (e.button == GLFW_MOUSE_BUTTON_LEFT && (e.mods & RACK_MOD_MASK) == GLFW_MOD_ALT) {
+			e.consume(this);
+			return;
+		}
+		// Might as well handle middle click before children as well.
+		if (e.button == GLFW_MOUSE_BUTTON_MIDDLE) {
+			e.consume(this);
+			return;
+		}
+	}
+
 	Widget::onButton(e);
-	if (e.isConsumed())
-		return;
-
-	// Consume right button only if the scrollbars are visible
-	if (!(horizontalScrollBar->visible || verticalScrollBar->visible))
-		return;
-
-	if (e.button == GLFW_MOUSE_BUTTON_MIDDLE) {
-		e.consume(this);
-	}
 }
 
-void ScrollWidget::onDragStart(const event::DragStart& e) {
-	if (e.button == GLFW_MOUSE_BUTTON_MIDDLE) {
-		e.consume(this);
-	}
+
+void ScrollWidget::onDragStart(const DragStartEvent& e) {
+	e.consume(this);
 }
 
-void ScrollWidget::onDragMove(const event::DragMove& e) {
-	// Scroll only if the scrollbars are visible
-	if (!(horizontalScrollBar->visible || verticalScrollBar->visible))
-		return;
 
-	offset = offset.minus(e.mouseDelta);
+void ScrollWidget::onDragMove(const DragMoveEvent& e) {
+	math::Vec offsetDelta = e.mouseDelta.div(getAbsoluteZoom());
+	offset = offset.minus(offsetDelta);
 }
 
-void ScrollWidget::onHoverScroll(const event::HoverScroll& e) {
+
+void ScrollWidget::onHoverScroll(const HoverScrollEvent& e) {
 	OpaqueWidget::onHoverScroll(e);
 	if (e.isConsumed())
 		return;
 
-	// Scroll only if the scrollbars are visible
-	if (!(horizontalScrollBar->visible || verticalScrollBar->visible))
+	// Check if scrollable
+	math::Rect offsetBound = getContainerOffsetBound();
+	if (offsetBound.size.x <= 0.f && offsetBound.size.y <= 0.f)
 		return;
 
 	math::Vec scrollDelta = e.scrollDelta;
 	// Flip coordinates if shift is held
 	// Mac (or GLFW?) already does this for us.
 #if !defined ARCH_MAC
-	if ((APP->window->getMods() & RACK_MOD_MASK) == GLFW_MOD_SHIFT)
+	int mods = APP->window->getMods();
+	if ((mods & RACK_MOD_MASK) & GLFW_MOD_SHIFT)
 		scrollDelta = scrollDelta.flip();
 #endif
 
 	offset = offset.minus(scrollDelta);
 	e.consume(this);
+	internal->scrolling = true;
+}
+
+
+void ScrollWidget::onHoverKey(const HoverKeyEvent& e) {
+	OpaqueWidget::onHoverKey(e);
+	if (e.isConsumed())
+		return;
+
+	// Check if scrollable
+	math::Rect offsetBound = getContainerOffsetBound();
+	if (offsetBound.size.x <= 0.f && offsetBound.size.y <= 0.f)
+		return;
+
+	if (e.action == GLFW_PRESS || e.action == GLFW_REPEAT) {
+		if (e.isKeyCommand(GLFW_KEY_PAGE_UP)) {
+			offset.y -= box.size.y * 0.5;
+			e.consume(this);
+		}
+		if (e.isKeyCommand(GLFW_KEY_PAGE_UP, GLFW_MOD_SHIFT)) {
+			offset.x -= box.size.x * 0.5;
+			e.consume(this);
+		}
+		if (e.isKeyCommand(GLFW_KEY_PAGE_DOWN)) {
+			offset.y += box.size.y * 0.5;
+			e.consume(this);
+		}
+		if (e.isKeyCommand(GLFW_KEY_PAGE_DOWN, GLFW_MOD_SHIFT)) {
+			offset.x += box.size.x * 0.5;
+			e.consume(this);
+		}
+		if (e.isKeyCommand(GLFW_KEY_HOME)) {
+			math::Rect containerBox = container->getVisibleChildrenBoundingBox();
+			offset.y = containerBox.getTop();
+			e.consume(this);
+		}
+		if (e.isKeyCommand(GLFW_KEY_HOME, GLFW_MOD_SHIFT)) {
+			math::Rect containerBox = container->getVisibleChildrenBoundingBox();
+			offset.x = containerBox.getLeft();
+			e.consume(this);
+		}
+		if (e.isKeyCommand(GLFW_KEY_END)) {
+			math::Rect containerBox = container->getVisibleChildrenBoundingBox();
+			offset.y = containerBox.getBottom();
+			e.consume(this);
+		}
+		if (e.isKeyCommand(GLFW_KEY_END, GLFW_MOD_SHIFT)) {
+			math::Rect containerBox = container->getVisibleChildrenBoundingBox();
+			offset.x = containerBox.getRight();
+			e.consume(this);
+		}
+	}
 }
 
 

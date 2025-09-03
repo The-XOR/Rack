@@ -1,11 +1,22 @@
-#include <network.hpp>
-#include <asset.hpp>
+#include <vector>
+
+#include <openssl/crypto.h>
 #define CURL_STATICLIB
 #include <curl/curl.h>
+
+#include <network.hpp>
+#include <system.hpp>
+#include <asset.hpp>
+#include <settings.hpp>
 
 
 namespace rack {
 namespace network {
+
+
+static const std::vector<std::string> methodNames = {
+	"GET", "POST", "PUT", "DELETE",
+};
 
 
 static CURL* createCurl() {
@@ -13,10 +24,24 @@ static CURL* createCurl() {
 	assert(curl);
 
 	// curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-	// curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, true);
+	std::string userAgent = APP_NAME + " " + APP_EDITION_NAME + "/" + APP_VERSION;
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent.c_str());
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, true);
+	// Timeout to wait on initial HTTP connection.
+	// This is lower than the typical HTTP timeout of 60 seconds to avoid DAWs from aborting plugin scans.
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 30);
 
+	// If curl can't resolve a DNS entry, it sends a signal to interrupt the process.
+	// However, since we use curl on non-main thread, this crashes the application.
+	// So tell curl not to signal.
+	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+
+	// Load root certificates
 	std::string caPath = asset::system("cacert.pem");
 	curl_easy_setopt(curl, CURLOPT_CAINFO, caPath.c_str());
+
+	// Don't verify HTTPS certificates if verifyHttpsCerts is false
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, settings::verifyHttpsCerts);
 
 	return curl;
 }
@@ -30,35 +55,57 @@ static size_t writeStringCallback(char* ptr, size_t size, size_t nmemb, void* us
 }
 
 
+static std::string getCookieString(const CookieMap& cookies) {
+	std::string s;
+	for (const auto& pair : cookies) {
+		s += encodeUrl(pair.first);
+		s += "=";
+		s += encodeUrl(pair.second);
+		s += ";";
+	}
+	return s;
+}
+
+
 void init() {
+	// Because OpenSSL is compiled with no-pinshared, we need to initialize without defining atexit(), since we want to destroy it when libRack is unloaded.
+	OPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, NULL);
 	// curl_easy_init() calls this automatically, but it's good to make sure this is done on the main thread before other threads are spawned.
 	// https://curl.haxx.se/libcurl/c/curl_easy_init.html
 	curl_global_init(CURL_GLOBAL_ALL);
 }
 
 
-json_t* requestJson(Method method, std::string url, json_t* dataJ) {
+void destroy() {
+	curl_global_cleanup();
+	// Don't destroy OpenSSL because it's not designed to be reinitialized.
+	// OPENSSL_cleanup();
+}
+
+
+json_t* requestJson(Method method, const std::string& url, json_t* dataJ, const CookieMap& cookies) {
+	std::string urlS = url;
 	CURL* curl = createCurl();
 	char* reqStr = NULL;
 
 	// Process data
 	if (dataJ) {
 		if (method == METHOD_GET) {
-			// Append ?key=value&... to url
-			url += "?";
+			// Append ?key1=value1&key2=value2&... to url
+			urlS += "?";
 			bool isFirst = true;
 			const char* key;
 			json_t* value;
 			json_object_foreach(dataJ, key, value) {
 				if (json_is_string(value)) {
 					if (!isFirst)
-						url += "&";
-					url += key;
-					url += "=";
+						urlS += "&";
+					urlS += key;
+					urlS += "=";
 					const char* str = json_string_value(value);
 					size_t len = json_string_length(value);
 					char* escapedStr = curl_easy_escape(curl, str, len);
-					url += escapedStr;
+					urlS += escapedStr;
 					curl_free(escapedStr);
 					isFirst = false;
 				}
@@ -69,22 +116,20 @@ json_t* requestJson(Method method, std::string url, json_t* dataJ) {
 		}
 	}
 
-	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	curl_easy_setopt(curl, CURLOPT_URL, urlS.c_str());
 
 	// Set HTTP method
-	switch (method) {
-		case METHOD_GET:
-			// This is CURL's default
-			break;
-		case METHOD_POST:
-			curl_easy_setopt(curl, CURLOPT_POST, true);
-			break;
-		case METHOD_PUT:
-			curl_easy_setopt(curl, CURLOPT_PUT, true);
-			break;
-		case METHOD_DELETE:
-			curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-			break;
+	if (method == METHOD_GET) {
+		// This is CURL's default
+	}
+	else if (method == METHOD_POST) {
+		curl_easy_setopt(curl, CURLOPT_POST, true);
+	}
+	else if (method == METHOD_PUT) {
+		curl_easy_setopt(curl, CURLOPT_UPLOAD, true);
+	}
+	else if (method == METHOD_DELETE) {
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 	}
 
 	// Set headers
@@ -92,6 +137,11 @@ json_t* requestJson(Method method, std::string url, json_t* dataJ) {
 	headers = curl_slist_append(headers, "Accept: application/json");
 	headers = curl_slist_append(headers, "Content-Type: application/json");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+	// Cookies
+	if (!cookies.empty()) {
+		curl_easy_setopt(curl, CURLOPT_COOKIE, getCookieString(cookies).c_str());
+	}
 
 	// Body callbacks
 	if (reqStr)
@@ -102,21 +152,24 @@ json_t* requestJson(Method method, std::string url, json_t* dataJ) {
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resText);
 
 	// Perform request
+	INFO("Requesting JSON %s %s", methodNames[method].c_str(), urlS.c_str());
 	CURLcode res = curl_easy_perform(curl);
 
 	// Cleanup
 	if (reqStr)
-		free(reqStr);
+		std::free(reqStr);
 	curl_easy_cleanup(curl);
 	curl_slist_free_all(headers);
 
-	if (res == CURLE_OK) {
-		// Parse JSON response
-		json_error_t error;
-		json_t* rootJ = json_loads(resText.c_str(), 0, &error);
-		return rootJ;
+	if (res != CURLE_OK) {
+		WARN("Could not request %s: %s", urlS.c_str(), curl_easy_strerror(res));
+		return NULL;
 	}
-	return NULL;
+
+	// Parse JSON response
+	json_error_t error;
+	json_t* rootJ = json_loads(resText.c_str(), 0, &error);
+	return rootJ;
 }
 
 
@@ -131,10 +184,11 @@ static int xferInfoCallback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
 	return 0;
 }
 
-bool requestDownload(std::string url, const std::string& filename, float* progress) {
+
+bool requestDownload(const std::string& url, const std::string& filename, float* progress, const CookieMap& cookies) {
 	CURL* curl = createCurl();
 
-	FILE* file = fopen(filename.c_str(), "wb");
+	FILE* file = std::fopen(filename.c_str(), "wb");
 	if (!file)
 		return false;
 
@@ -147,32 +201,40 @@ bool requestDownload(std::string url, const std::string& filename, float* progre
 	// Fail on 4xx and 5xx HTTP codes
 	curl_easy_setopt(curl, CURLOPT_FAILONERROR, true);
 
+	// Cookies
+	if (!cookies.empty()) {
+		curl_easy_setopt(curl, CURLOPT_COOKIE, getCookieString(cookies).c_str());
+	}
+
+	INFO("Requesting download %s", url.c_str());
 	CURLcode res = curl_easy_perform(curl);
 	curl_easy_cleanup(curl);
 
-	fclose(file);
+	std::fclose(file);
 
-	if (res != CURLE_OK)
-		remove(filename.c_str());
+	if (res != CURLE_OK) {
+		system::remove(filename);
+		WARN("Could not download %s: %s", url.c_str(), curl_easy_strerror(res));
+		return false;
+	}
 
-	return res == CURLE_OK;
+	return true;
 }
+
 
 std::string encodeUrl(const std::string& s) {
-	CURL* curl = curl_easy_init();
+	CURL* curl = createCurl();
+	DEFER({curl_easy_cleanup(curl);});
 	assert(curl);
 	char* escaped = curl_easy_escape(curl, s.c_str(), s.size());
-	std::string ret = escaped;
-	curl_free(escaped);
-	curl_easy_cleanup(curl);
-	return ret;
+	DEFER({curl_free(escaped);});
+	return std::string(escaped);
 }
+
 
 std::string urlPath(const std::string& url) {
 	CURLU* curl = curl_url();
-	DEFER({
-		curl_url_cleanup(curl);
-	});
+	DEFER({curl_url_cleanup(curl);});
 	if (curl_url_set(curl, CURLUPART_URL, url.c_str(), 0))
 		return "";
 	char* buf;

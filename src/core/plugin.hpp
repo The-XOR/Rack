@@ -5,22 +5,22 @@ namespace rack {
 namespace core {
 
 
-extern Model* modelAudioInterface;
-extern Model* modelAudioInterface16;
-extern Model* modelAudioInterface32;
+extern Model* modelAudio2;
+extern Model* modelAudio8;
+extern Model* modelAudio16;
 extern Model* modelMIDI_CV;
-extern Model* modelMIDI_CC;
+extern Model* modelMIDICC_CV;
 extern Model* modelMIDI_Gate;
-extern Model* modelMIDI_Map;
+extern Model* modelMIDIMap;
 extern Model* modelCV_MIDI;
-extern Model* modelCV_CC;
-extern Model* modelCV_Gate;
+extern Model* modelCV_MIDICC;
+extern Model* modelGate_MIDI;
 extern Model* modelBlank;
 extern Model* modelNotes;
 
 
 template <class TChoice>
-struct Grid16MidiWidget : MidiWidget {
+struct Grid16MidiDisplay : MidiDisplay {
 	LedDisplaySeparator* hSeparators[4];
 	LedDisplaySeparator* vSeparators[4];
 	TChoice* choices[4][4];
@@ -91,7 +91,7 @@ struct CcChoice : LedDisplayChoice {
 
 			// Cancel focus if no longer learning
 			if (APP->event->getSelectedWidget() == this)
-				APP->event->setSelected(NULL);
+				APP->event->setSelectedWidget(NULL);
 		}
 
 		// Set text
@@ -101,7 +101,7 @@ struct CcChoice : LedDisplayChoice {
 			text = string::f("%d", cc);
 	}
 
-	void onSelect(const event::Select& e) override {
+	void onSelect(const SelectEvent& e) override {
 		if (!module)
 			return;
 		module->learningId = id;
@@ -109,18 +109,18 @@ struct CcChoice : LedDisplayChoice {
 		e.consume(this);
 	}
 
-	void onDeselect(const event::Deselect& e) override {
+	void onDeselect(const DeselectEvent& e) override {
 		if (!module)
 			return;
 		if (module->learningId == id) {
 			if (0 <= focusCc && focusCc < 128) {
-				module->learnedCcs[id] = focusCc;
+				module->setLearnedCc(id, focusCc);
 			}
 			module->learningId = -1;
 		}
 	}
 
-	void onSelectText(const event::SelectText& e) override {
+	void onSelectText(const SelectTextEvent& e) override {
 		int c = e.codepoint;
 		if ('0' <= c && c <= '9') {
 			if (focusCc < 0)
@@ -132,9 +132,9 @@ struct CcChoice : LedDisplayChoice {
 		e.consume(this);
 	}
 
-	void onSelectKey(const event::SelectKey& e) override {
-		if ((e.key == GLFW_KEY_ENTER || e.key == GLFW_KEY_KP_ENTER) && e.action == GLFW_PRESS && (e.mods & RACK_MOD_MASK) == 0) {
-			event::Deselect eDeselect;
+	void onSelectKey(const SelectKeyEvent& e) override {
+		if (e.action == GLFW_PRESS && (e.isKeyCommand(GLFW_KEY_ENTER) || e.isKeyCommand(GLFW_KEY_KP_ENTER))) {
+			DeselectEvent eDeselect;
 			onDeselect(eDeselect);
 			APP->event->selectedWidget = NULL;
 			e.consume(this);
@@ -164,7 +164,7 @@ struct NoteChoice : LedDisplayChoice {
 	}
 
 	void step() override {
-		int note;
+		int8_t note;
 		if (!module) {
 			note = id + 36;
 		}
@@ -178,7 +178,7 @@ struct NoteChoice : LedDisplayChoice {
 
 			// Cancel focus if no longer learning
 			if (APP->event->getSelectedWidget() == this)
-				APP->event->setSelected(NULL);
+				APP->event->setSelectedWidget(NULL);
 		}
 
 		// Set text
@@ -193,7 +193,7 @@ struct NoteChoice : LedDisplayChoice {
 		}
 	}
 
-	void onSelect(const event::Select& e) override {
+	void onSelect(const SelectEvent& e) override {
 		if (!module)
 			return;
 		module->learningId = id;
@@ -201,18 +201,18 @@ struct NoteChoice : LedDisplayChoice {
 		e.consume(this);
 	}
 
-	void onDeselect(const event::Deselect& e) override {
+	void onDeselect(const DeselectEvent& e) override {
 		if (!module)
 			return;
 		if (module->learningId == id) {
 			if (0 <= focusNote && focusNote < 128) {
-				module->learnedNotes[id] = focusNote;
+				module->setLearnedNote(id, focusNote);
 			}
 			module->learningId = -1;
 		}
 	}
 
-	void onSelectText(const event::SelectText& e) override {
+	void onSelectText(const SelectTextEvent& e) override {
 		int c = e.codepoint;
 		if ('a' <= c && c <= 'g') {
 			static const int majorNotes[7] = {9, 11, 0, 2, 4, 5, 7};
@@ -234,9 +234,9 @@ struct NoteChoice : LedDisplayChoice {
 		e.consume(this);
 	}
 
-	void onSelectKey(const event::SelectKey& e) override {
-		if ((e.key == GLFW_KEY_ENTER || e.key == GLFW_KEY_KP_ENTER) && e.action == GLFW_PRESS && (e.mods & RACK_MOD_MASK) == 0) {
-			event::Deselect eDeselect;
+	void onSelectKey(const SelectKeyEvent& e) override {
+		if (e.action == GLFW_PRESS && (e.isKeyCommand(GLFW_KEY_ENTER) || e.isKeyCommand(GLFW_KEY_KP_ENTER))) {
+			DeselectEvent eDeselect;
 			onDeselect(eDeselect);
 			APP->event->selectedWidget = NULL;
 			e.consume(this);

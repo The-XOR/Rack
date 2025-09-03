@@ -1,5 +1,5 @@
 #include <app/Switch.hpp>
-#include <app.hpp>
+#include <context.hpp>
 #include <app/Scene.hpp>
 #include <random.hpp>
 #include <history.hpp>
@@ -9,55 +9,103 @@ namespace rack {
 namespace app {
 
 
+struct Switch::Internal {
+	/** Whether momentary switch was pressed this frame. */
+	bool momentaryPressed = false;
+	/** Whether momentary switch was released this frame. */
+	bool momentaryReleased = false;
+};
+
+
+Switch::Switch() {
+	internal = new Internal;
+}
+
+Switch::~Switch() {
+	delete internal;
+}
+
+void Switch::initParamQuantity() {
+	ParamWidget::initParamQuantity();
+	engine::ParamQuantity* pq = getParamQuantity();
+	if (pq) {
+		pq->snapEnabled = true;
+		pq->smoothEnabled = false;
+		if (momentary) {
+			pq->resetEnabled = false;
+			pq->randomizeEnabled = false;
+		}
+	}
+}
+
 void Switch::step() {
-	if (momentaryPressed) {
-		momentaryPressed = false;
+	engine::ParamQuantity* pq = getParamQuantity();
+	if (internal->momentaryPressed) {
+		internal->momentaryPressed = false;
 		// Wait another frame.
 	}
-	else if (momentaryReleased) {
-		momentaryReleased = false;
-		if (paramQuantity) {
+	else if (internal->momentaryReleased) {
+		internal->momentaryReleased = false;
+		if (pq) {
 			// Set to minimum value
-			paramQuantity->setMin();
+			pq->setMin();
 		}
 	}
 	ParamWidget::step();
 }
 
-void Switch::onDoubleClick(const event::DoubleClick& e) {
+void Switch::onDoubleClick(const DoubleClickEvent& e) {
 	// Don't reset parameter on double-click
+	OpaqueWidget::onDoubleClick(e);
 }
 
-void Switch::onDragStart(const event::DragStart& e) {
+void Switch::onDragStart(const DragStartEvent& e) {
+	ParamWidget::onDragStart(e);
+
 	if (e.button != GLFW_MOUSE_BUTTON_LEFT)
 		return;
 
+	engine::ParamQuantity* pq = getParamQuantity();
 	if (momentary) {
-		if (paramQuantity) {
+		internal->momentaryPressed = true;
+		if (pq) {
 			// Set to maximum value
-			paramQuantity->setMax();
-			momentaryPressed = true;
+			pq->setMax();
 		}
 	}
 	else {
-		if (paramQuantity) {
-			float oldValue = paramQuantity->getValue();
-			if (paramQuantity->isMax()) {
-				// Reset value back to minimum
-				paramQuantity->setMin();
+		if (pq) {
+			float oldValue = pq->getValue();
+
+			int mods = APP->window->getMods();
+			if ((mods & RACK_MOD_MASK) == 0) {
+				if (pq->isMax()) {
+					// Reset value back to minimum
+					pq->setMin();
+				}
+				else {
+					// Increment value by 1
+					pq->setValue(std::round(pq->getValue()) + 1.f);
+				}
 			}
-			else {
-				// Increment value by 1
-				paramQuantity->setValue(std::round(paramQuantity->getValue()) + 1.f);
+			else if ((mods & RACK_MOD_MASK) == RACK_MOD_CTRL) {
+				if (pq->isMin()) {
+					// Reset value back to maximum
+					pq->setMax();
+				}
+				else {
+					// Decrement value by 1
+					pq->setValue(std::round(pq->getValue()) - 1.f);
+				}
 			}
 
-			float newValue = paramQuantity->getValue();
+			float newValue = pq->getValue();
 			if (oldValue != newValue) {
 				// Push ParamChange history action
 				history::ParamChange* h = new history::ParamChange;
-				h->name = "move switch";
-				h->moduleId = paramQuantity->module->id;
-				h->paramId = paramQuantity->paramId;
+				h->name = string::translate("Switch.history.move");
+				h->moduleId = module->id;
+				h->paramId = paramId;
 				h->oldValue = oldValue;
 				h->newValue = newValue;
 				APP->history->push(h);
@@ -66,25 +114,14 @@ void Switch::onDragStart(const event::DragStart& e) {
 	}
 }
 
-void Switch::onDragEnd(const event::DragEnd& e) {
+void Switch::onDragEnd(const DragEndEvent& e) {
+	ParamWidget::onDragEnd(e);
+
 	if (e.button != GLFW_MOUSE_BUTTON_LEFT)
 		return;
 
 	if (momentary) {
-		momentaryReleased = true;
-	}
-}
-
-void Switch::reset() {
-	if (paramQuantity && !momentary) {
-		paramQuantity->reset();
-	}
-}
-
-void Switch::randomize() {
-	if (paramQuantity && !momentary) {
-		float value = paramQuantity->getMinValue() + std::floor(random::uniform() * (paramQuantity->getRange() + 1));
-		paramQuantity->setValue(value);
+		internal->momentaryReleased = true;
 	}
 }
 

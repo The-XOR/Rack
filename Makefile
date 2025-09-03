@@ -1,67 +1,126 @@
 RACK_DIR ?= .
-# VERSION := 1.dev.$(shell git rev-parse --short HEAD)
-VERSION := 1.1.6
-XORVERSION := 1.1.6d
+RACK_EDITION := Free
+RACK_VERSION_MAJOR := 2
+RACK_VERSION ?= $(patsubst v%,%,$(shell git describe --tags --match "v$(RACK_VERSION_MAJOR).*"))
 
-FLAGS += -DVERSION=$(VERSION) -DXORVERSION=$(XORVERSION)
 FLAGS += -Iinclude -Idep/include
 
 include arch.mk
-
-SED := perl -pi -e
 
 # Sources and build flags
 
 SOURCES += dep/nanovg/src/nanovg.c
 SOURCES += dep/osdialog/osdialog.c
+SOURCES += dep/oui-blendish/blendish.c
 SOURCES += dep/pffft/pffft.c dep/pffft/fftpack.c
+SOURCES += dep/tinyexpr/tinyexpr.c
+SOURCES += $(wildcard src/*.c src/*/*.c)
 SOURCES += $(wildcard src/*.cpp src/*/*.cpp)
 
-ifdef ARCH_LIN
-	SOURCES += dep/osdialog/osdialog_gtk2.c
-build/dep/osdialog/osdialog_gtk2.c.o: FLAGS += $(shell pkg-config --cflags gtk+-2.0)
+build/src/common.cpp.o: FLAGS += -D_RACK_VERSION=$(RACK_VERSION)
+build/dep/tinyexpr/tinyexpr.c.o: FLAGS += -DTE_POW_FROM_RIGHT -DTE_NAT_LOG
 
-	LDFLAGS += -rdynamic \
-		dep/lib/libGLEW.a dep/lib/libglfw3.a dep/lib/libjansson.a dep/lib/libcurl.a dep/lib/libssl.a dep/lib/libcrypto.a dep/lib/libzip.a dep/lib/libz.a dep/lib/libspeexdsp.a dep/lib/libsamplerate.a dep/lib/librtmidi.a dep/lib/librtaudio.a \
-		-lpthread -lGL -ldl -lX11 -lasound -ljack \
-		$(shell pkg-config --libs gtk+-2.0)
-	TARGET := Rack
+FLAGS += -fPIC
+LDFLAGS += -shared
+
+ifdef ARCH_LIN
+	SED := sed -i
+	TARGET := libRack.so
+
+	SOURCES += dep/osdialog/osdialog_zenity.c
+
+	# This prevents static variables in the DSO (dynamic shared object) from being preserved after dlclose().
+	# I don't really understand the side effects (see GCC manual), but so far tests are positive.
+	FLAGS += -fno-gnu-unique
+
+	LDFLAGS += -Wl,--whole-archive
+	LDFLAGS += -static-libstdc++ -static-libgcc
+	LDFLAGS += dep/lib/libGLEW.a dep/lib/libglfw3.a dep/lib/libjansson.a dep/lib/libcurl.a dep/lib/libssl.a dep/lib/libcrypto.a dep/lib/libarchive.a dep/lib/libzstd.a dep/lib/libspeexdsp.a dep/lib/libsamplerate.a dep/lib/librtmidi.a dep/lib/librtaudio.a
+	LDFLAGS += -Wl,--no-whole-archive
+	LDFLAGS += -lpthread -lGL -ldl -lX11 -lasound -ljack -lpulse -lpulse-simple
 endif
 
 ifdef ARCH_MAC
+	SED := sed -i ''
+	TARGET := libRack.dylib
+
+	SOURCES += $(wildcard src/*.m src/*/*.m)
+	SOURCES += $(wildcard src/*.mm src/*/*.mm)
 	SOURCES += dep/osdialog/osdialog_mac.m
-	LDFLAGS += -lpthread -ldl \
-		-framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework CoreAudio -framework CoreMIDI \
-		-Wl,-all_load \
-		dep/lib/libGLEW.a dep/lib/libglfw3.a dep/lib/libjansson.a dep/lib/libcurl.a dep/lib/libssl.a dep/lib/libcrypto.a dep/lib/libzip.a dep/lib/libz.a dep/lib/libspeexdsp.a dep/lib/libsamplerate.a dep/lib/librtmidi.a dep/lib/librtaudio.a
-	# For LuaJIT
-	LDFLAGS += -Wl,-pagezero_size,10000 -Wl,-image_base,100000000
-	TARGET := Rack
+	LDFLAGS += -lpthread -ldl
+	LDFLAGS += -framework SystemConfiguration -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework CoreAudio -framework CoreMIDI -framework AVFoundation
+	LDFLAGS += -Wl,-all_load
+	LDFLAGS += dep/lib/libGLEW.a dep/lib/libglfw3.a dep/lib/libjansson.a dep/lib/libcurl.a dep/lib/libssl.a dep/lib/libcrypto.a -Wl,-load_hidden,dep/lib/libarchive.a -Wl,-load_hidden,dep/lib/libzstd.a dep/lib/libspeexdsp.a dep/lib/libsamplerate.a -Wl,-load_hidden,dep/lib/librtmidi.a -Wl,-load_hidden,dep/lib/librtaudio.a
 endif
 
 ifdef ARCH_WIN
+	SED := sed -i
+	TARGET := libRack.dll
+
 	SOURCES += dep/osdialog/osdialog_win.c
-	LDFLAGS += -Wl,--export-all-symbols,--out-implib,libRack.a -mwindows \
-		dep/lib/libglew32.a dep/lib/libglfw3.a dep/lib/libjansson.a dep/lib/libspeexdsp.a dep/lib/libsamplerate.a dep/lib/libzip.a dep/lib/libz.a dep/lib/libcurl.a dep/lib/libssl.a dep/lib/libcrypto.a dep/lib/librtaudio.a dep/lib/librtmidi.a \
-		-lpthread -lopengl32 -lgdi32 -lws2_32 -lcomdlg32 -lole32 -ldsound -lwinmm -lksuser -lshlwapi -lmfplat -lmfuuid -lwmcodecdspuuid -ldbghelp
-	TARGET := Rack.exe
-	OBJECTS += Rack.res
+	LDFLAGS += -municode
+	LDFLAGS += -Wl,--export-all-symbols
+	LDFLAGS += -Wl,--out-implib,$(TARGET).a
+	LDFLAGS += -Wl,-Bstatic -Wl,--whole-archive
+	LDFLAGS += dep/lib/libglew32.a dep/lib/libglfw3.a dep/lib/libjansson.a dep/lib/libspeexdsp.a dep/lib/libsamplerate.a dep/lib/libarchive.a dep/lib/libzstd.a dep/lib/libcurl.a dep/lib/libssl.a dep/lib/libcrypto.a dep/lib/librtaudio.a dep/lib/librtmidi.a
+	LDFLAGS += -Wl,-Bdynamic -Wl,--no-whole-archive
+	LDFLAGS += -lpthread -lopengl32 -lgdi32 -lws2_32 -lcomdlg32 -lole32 -ldsound -lwinmm -lksuser -lshlwapi -lmfplat -lmfuuid -lwmcodecdspuuid -ldbghelp -lcrypt32 -lbcrypt
 endif
+
+# Some libraries aren't needed by plugins and might conflict with DAWs that load libRack, so make their symbols local to libRack instead of global (default).
+# --exclude-libs is unavailable on Apple ld
+ifndef ARCH_MAC
+	LDFLAGS += -Wl,--exclude-libs,libzstd.a
+	LDFLAGS += -Wl,--exclude-libs,libarchive.a
+	LDFLAGS += -Wl,--exclude-libs,librtmidi.a
+	LDFLAGS += -Wl,--exclude-libs,librtaudio.a
+endif
+
+include compile.mk
+
+# Standalone adapter
+
+STANDALONE_SOURCES += adapters/standalone.cpp
+
+ifdef ARCH_LIN
+	STANDALONE_TARGET := Rack
+	STANDALONE_LDFLAGS += -static-libstdc++ -static-libgcc
+	STANDALONE_LDFLAGS += -Wl,-rpath=.
+endif
+ifdef ARCH_MAC
+	STANDALONE_TARGET := Rack
+	STANDALONE_LDFLAGS += -stdlib=libc++
+endif
+ifdef ARCH_WIN
+	STANDALONE_TARGET := Rack.exe
+	STANDALONE_LDFLAGS += -mwindows
+	# 1MiB stack size to match MSVC
+	STANDALONE_LDFLAGS += -Wl,--stack,0x100000
+	STANDALONE_OBJECTS += build/Rack.res
+endif
+
+STANDALONE_OBJECTS += $(TARGET)
+
+$(STANDALONE_TARGET): $(STANDALONE_SOURCES) $(STANDALONE_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(STANDALONE_LDFLAGS)
 
 # Convenience targets
 
-all: $(TARGET)
+all: $(TARGET) $(STANDALONE_TARGET)
 
 dep:
 	$(MAKE) -C dep
 
-run: $(TARGET)
+cleandep:
+	$(MAKE) -C dep clean
+
+run: $(STANDALONE_TARGET)
 	./$< -d
 
-runr: $(TARGET)
+runr: $(STANDALONE_TARGET)
 	./$<
 
-debug: $(TARGET)
+debug: $(STANDALONE_TARGET)
 ifdef ARCH_MAC
 	lldb -- ./$< -d
 endif
@@ -72,136 +131,32 @@ ifdef ARCH_LIN
 	gdb --args ./$< -d
 endif
 
-perf: $(TARGET)
-	# Requires gperftools
+perf: $(STANDALONE_TARGET)
+	# Requires perf
 	perf record --call-graph dwarf -o perf.data ./$< -d
 	# Analyze with hotspot (https://github.com/KDAB/hotspot) for example
 	hotspot perf.data
 	rm perf.data
 
-valgrind: $(TARGET)
-	# --gen-suppressions=yes
-	# --leak-check=full
-	valgrind --suppressions=valgrind.supp ./$< -d
+VALGRIND_FLAGS += --gen-suppressions=all
+VALGRIND_FLAGS += --suppressions=valgrind.supp
+VALGRIND_FLAGS += --leak-check=full
+VALGRIND_FLAGS += --track-origins=yes
+VALGRIND_FLAGS += --exit-on-first-error=yes
+valgrind: $(STANDALONE_TARGET)
+	valgrind $(VALGRIND_FLAGS) ./$< -d
 
 clean:
-	rm -rfv $(TARGET) libRack.a Rack.res build dist
+	rm -rfv build dist $(TARGET) $(STANDALONE_TARGET) *.a
 
-
-# For Windows resources
-%.res: %.rc
+# Windows resources
+build/%.res: %.rc
 ifdef ARCH_WIN
 	windres $^ -O coff -o $@
 endif
 
 
-DIST_RES := LICENSE* CHANGELOG.md res cacert.pem Core.json template.vcv
-DIST_NAME := Rack-$(XORVERSION)-$(ARCH)
-DIST_SDK := Rack-SDK-$(VERSION).zip
-
-# This target is not intended for public use
-dist: $(TARGET)
-	rm -rf dist
-	mkdir -p dist
-
-ifdef ARCH_LIN
-	mkdir -p dist/Rack
-	cp $(TARGET) dist/Rack/
-	$(STRIP) -s dist/Rack/$(TARGET)
-	cp -R $(DIST_RES) dist/Rack/
-	# Manually check that no nonstandard shared libraries are linked
-	ldd dist/Rack/$(TARGET)
-	# cp Fundamental.zip dist/Rack/
-	# Make ZIP
-	cd dist && zip -q -9 -r $(DIST_NAME).zip Rack
-endif
-ifdef ARCH_MAC
-	mkdir -p dist/Rack.app
-	mkdir -p dist/Rack.app/Contents
-	cp Info.plist dist/Rack.app/Contents/
-	$(SED) 's/{VERSION}/$(VERSION)/g' dist/Rack.app/Contents/Info.plist
-	mkdir -p dist/Rack.app/Contents/MacOS
-	cp $(TARGET) dist/Rack.app/Contents/MacOS/
-	$(STRIP) -S dist/Rack.app/Contents/MacOS/$(TARGET)
-	mkdir -p dist/Rack.app/Contents/Resources
-	cp -R $(DIST_RES) icon.icns dist/Rack.app/Contents/Resources/
-
-	# Manually check that no nonstandard shared libraries are linked
-	otool -L dist/Rack.app/Contents/MacOS/$(TARGET)
-
-	cp Fundamental.zip dist/Rack.app/Contents/Resources/Fundamental.txt
-	# Clean up and sign bundle
-	xattr -cr dist/Rack.app
-	# This will only work if you have the private key to my certificate
-	codesign --verbose --sign "Developer ID Application: Andrew Belt (VRF26934X5)" --options runtime --entitlements Entitlements.plist --deep dist/Rack.app
-	codesign --verify --deep --strict --verbose=2 dist/Rack.app
-	# Make ZIP
-	cd dist && zip -q -9 -r $(DIST_NAME).zip Rack.app
-endif
-ifdef ARCH_WIN
-	mkdir -p dist/Rack
-	cp $(TARGET) dist/Rack/
-	$(STRIP) -s dist/Rack/$(TARGET)
-	cp -R $(DIST_RES) dist/Rack/
-	cp /mingw64/bin/libwinpthread-1.dll dist/Rack/
-	cp /mingw64/bin/libstdc++-6.dll dist/Rack/
-	cp /mingw64/bin/libgcc_s_seh-1.dll dist/Rack/
-	#cp Fundamental.zip dist/Rack/
-	# Make ZIP
-	cd dist && zip -q -9 -r $(DIST_NAME).zip Rack
-	# Make NSIS installer
-	# pacman -S mingw-w64-x86_64-nsis
-	#makensis -DVERSION=$(VERSION) installer.nsi
-	#mv installer.exe dist/$(DIST_NAME).exe
-endif
-
-	# Rack SDK
-	mkdir -p dist/Rack-SDK
-	cp -R LICENSE* *.mk include helper.py dist/Rack-SDK/
-	mkdir -p dist/Rack-SDK/dep/
-	cp -R dep/include dist/Rack-SDK/dep/
-ifdef ARCH_WIN
-	cp libRack.a dist/Rack-SDK/
-endif
-	cd dist && zip -q -9 -r $(DIST_SDK) Rack-SDK
-
-
-notarize:
-ifdef ARCH_MAC
-	# This will only work if you have my Apple ID password in your keychain
-	xcrun altool --notarize-app -f dist/Rack-$(VERSION)-$(ARCH).zip --primary-bundle-id=com.vcvrack.rack -u "andrewpbelt@gmail.com" -p @keychain:notarize --output-format xml > dist/UploadInfo.plist
-	# Wait for Apple's servers to approve the app
-	while true; do \
-		echo "Waiting on Apple servers..." ; \
-		xcrun altool --notarization-info `/usr/libexec/PlistBuddy -c "Print :notarization-upload:RequestUUID" dist/UploadInfo.plist` -u "andrewpbelt@gmail.com" -p @keychain:notarize --output-format xml > dist/RequestInfo.plist ; \
-		if [ "`/usr/libexec/PlistBuddy -c "Print :notarization-info:Status" dist/RequestInfo.plist`" != "in progress" ]; then \
-			break ; \
-		fi ; \
-		sleep 10 ; \
-	done
-	# Mark app as notarized, check, and re-zip
-	xcrun stapler staple dist/Rack.app
-	spctl --assess --type execute --ignore-cache --no-cache -vv dist/Rack.app
-	cd dist && zip -q -9 -r $(DIST_NAME).zip Rack.app
-endif
-
-
-UPLOAD_URL := vortico@vcvrack.com:files/
-upload:
-	# This will only work if you have a private key to my server
-ifdef ARCH_MAC
-	rsync dist/$(DIST_NAME).zip $(UPLOAD_URL) -zP
-endif
-ifdef ARCH_WIN
-	rsync dist/$(DIST_NAME).zip dist/$(DIST_NAME).exe dist/$(DIST_SDK) $(UPLOAD_URL) -P
-endif
-ifdef ARCH_LIN
-	rsync dist/$(DIST_NAME).zip $(UPLOAD_URL) -zP
-endif
-
-
-# Plugin helpers
-
+# Plugin helper
 plugins:
 ifdef CMD
 	for f in plugins/*; do (cd "$$f" && $(CMD)); done
@@ -210,9 +165,160 @@ else
 endif
 
 
-# Includes
+# The following targets are not supported for public use
 
-include compile.mk
+DIST_NAME = Rack$(RACK_EDITION)-$(RACK_VERSION)-$(ARCH_NAME)
+ifdef ARCH_MAC
+	DIST_BUNDLE := VCV Rack $(RACK_VERSION_MAJOR) $(RACK_EDITION).app
+else
+	DIST_DIR := Rack$(RACK_VERSION_MAJOR)$(RACK_EDITION)
+endif
+DIST_MD := $(wildcard *.md)
+DIST_HTML := $(patsubst %.md, build/%.html, $(DIST_MD))
+DIST_RES := res cacert.pem Core.json template.vcv LICENSE-GPLv3.txt $(DIST_HTML) translations
+DIST_SDK_DIR := Rack-SDK
+DIST_SDK = Rack-SDK-$(RACK_VERSION)-$(ARCH_NAME).zip
+FUNDAMENTAL_VERSION ?= 2.6.2
+FUNDAMENTAL_FILENAME := Fundamental-$(FUNDAMENTAL_VERSION)-$(ARCH_NAME).vcvplugin
+
+
+dist: $(TARGET) $(STANDALONE_TARGET) $(DIST_HTML)
+	mkdir -p dist
+	# Download Fundamental package if not already downloaded
+	[ -f "$(FUNDAMENTAL_FILENAME)" ] || curl -o "$(FUNDAMENTAL_FILENAME)" "https://api.vcvrack.com/download?slug=Fundamental&version=$(FUNDAMENTAL_VERSION)&arch=$(ARCH_NAME)"
+ifdef ARCH_LIN
+	mkdir -p dist/"$(DIST_DIR)"
+	cp $(TARGET) dist/"$(DIST_DIR)"/
+	cp $(STANDALONE_TARGET) dist/"$(DIST_DIR)"/
+	$(STRIP) -s dist/"$(DIST_DIR)"/$(TARGET)
+	$(STRIP) -s dist/"$(DIST_DIR)"/$(STANDALONE_TARGET)
+	# Manually check that no nonstandard shared libraries are linked
+	ldd dist/"$(DIST_DIR)"/$(TARGET)
+	ldd dist/"$(DIST_DIR)"/$(STANDALONE_TARGET)
+	# Copy resources
+	cp -R $(DIST_RES) dist/"$(DIST_DIR)"/
+	cp "$(FUNDAMENTAL_FILENAME)" dist/"$(DIST_DIR)"/
+endif
+ifdef ARCH_MAC
+	mkdir -p dist/"$(DIST_BUNDLE)"
+	mkdir -p dist/"$(DIST_BUNDLE)"/Contents
+	mkdir -p dist/"$(DIST_BUNDLE)"/Contents/Resources
+	mkdir -p dist/"$(DIST_BUNDLE)"/Contents/MacOS
+	cp $(TARGET) dist/"$(DIST_BUNDLE)"/Contents/Resources/
+	cp $(STANDALONE_TARGET) dist/"$(DIST_BUNDLE)"/Contents/MacOS/
+	$(STRIP) -S dist/"$(DIST_BUNDLE)"/Contents/Resources/$(TARGET)
+	$(STRIP) -S dist/"$(DIST_BUNDLE)"/Contents/MacOS/$(STANDALONE_TARGET)
+	install_name_tool -change $(TARGET) @executable_path/../Resources/$(TARGET) dist/"$(DIST_BUNDLE)"/Contents/MacOS/$(STANDALONE_TARGET)
+	# Manually check that no nonstandard shared libraries are linked
+	otool -L dist/"$(DIST_BUNDLE)"/Contents/Resources/$(TARGET)
+	otool -L dist/"$(DIST_BUNDLE)"/Contents/MacOS/$(STANDALONE_TARGET)
+	# Copy resources
+	cp Info.plist dist/"$(DIST_BUNDLE)"/Contents/
+	$(SED) 's/{RACK_VERSION}/$(RACK_VERSION)/g' dist/"$(DIST_BUNDLE)"/Contents/Info.plist
+	cp -R icon.icns dist/"$(DIST_BUNDLE)"/Contents/Resources/
+	cp -R $(DIST_RES) dist/"$(DIST_BUNDLE)"/Contents/Resources/
+	cp "$(FUNDAMENTAL_FILENAME)" dist/"$(DIST_BUNDLE)"/Contents/Resources/
+endif
+ifdef ARCH_WIN
+	mkdir -p dist/"$(DIST_DIR)"
+	cp $(TARGET) dist/"$(DIST_DIR)"/
+	cp $(STANDALONE_TARGET) dist/"$(DIST_DIR)"/
+	$(STRIP) -s dist/"$(DIST_DIR)"/$(TARGET)
+	$(STRIP) -s dist/"$(DIST_DIR)"/$(STANDALONE_TARGET)
+	# Copy resources
+	cp -R $(DIST_RES) dist/"$(DIST_DIR)"/
+	cp /mingw64/bin/libwinpthread-1.dll dist/"$(DIST_DIR)"/
+	cp /mingw64/bin/libstdc++-6.dll dist/"$(DIST_DIR)"/
+	cp /mingw64/bin/libgcc_s_seh-1.dll dist/"$(DIST_DIR)"/
+	cp "$(FUNDAMENTAL_FILENAME)" dist/"$(DIST_DIR)"/
+endif
+
+
+sdk: $(DIST_HTML)
+	mkdir -p dist/$(DIST_SDK_DIR)
+	cp -R include *.mk helper.py $(DIST_HTML) dist/$(DIST_SDK_DIR)/
+	mkdir -p dist/$(DIST_SDK_DIR)/dep
+	cp -R dep/include dist/$(DIST_SDK_DIR)/dep/
+ifdef ARCH_LIN
+	cp $(TARGET) dist/$(DIST_SDK_DIR)/
+	$(STRIP) -s dist/$(DIST_SDK_DIR)/$(TARGET)
+endif
+ifdef ARCH_MAC
+	cp $(TARGET) dist/$(DIST_SDK_DIR)/
+	$(STRIP) -S dist/$(DIST_SDK_DIR)/$(TARGET)
+endif
+ifdef ARCH_WIN
+	cp $(TARGET).a dist/$(DIST_SDK_DIR)/
+endif
+	# SDK
+	cd dist && zip -q -9 -r $(DIST_SDK) $(DIST_SDK_DIR)
+
+
+package:
+ifdef ARCH_LIN
+	# Make ZIP
+	cd dist && zip -q -9 -r $(DIST_NAME).zip "$(DIST_DIR)"
+endif
+ifdef ARCH_MAC
+	# Clean up and sign bundle
+	xattr -cr dist/"$(DIST_BUNDLE)"
+	codesign --verbose --sign "Developer ID Application: Andrew Belt (V8SW9J626X)" --options runtime --entitlements Entitlements.plist --timestamp --deep dist/"$(DIST_BUNDLE)"/Contents/Resources/$(TARGET) dist/"$(DIST_BUNDLE)"
+	codesign --verify --deep --strict --verbose=2 dist/"$(DIST_BUNDLE)"
+	# Make standalone PKG
+	mkdir -p dist/Component
+	cp -R dist/"$(DIST_BUNDLE)" dist/Component/
+	pkgbuild --identifier com.vcvrack.rack2 --component-plist Component.plist --root dist/Component --install-location /Applications dist/Component.pkg
+	# Make PKG
+	productbuild --distribution Distribution.xml --package-path dist dist/$(DIST_NAME).pkg
+	productsign --sign "Developer ID Installer: Andrew Belt (V8SW9J626X)" dist/$(DIST_NAME).pkg dist/$(DIST_NAME)-signed.pkg
+	mv dist/$(DIST_NAME)-signed.pkg dist/$(DIST_NAME).pkg
+endif
+ifdef ARCH_WIN
+	# Make NSIS installer
+	# pacman -S mingw-w64-x86_64-nsis
+	makensis -DRACK_VERSION_MAJOR=$(RACK_VERSION_MAJOR) -DRACK_VERSION=$(RACK_VERSION) "-XOutFile dist/$(DIST_NAME).exe" installer.nsi
+endif
+
+
+lipo:
+ifndef OTHER_RACK_DIR
+	$(error OTHER_RACK_DIR not defined)
+endif
+ifdef ARCH_MAC
+	# App bundle
+	lipo -create -output dist/"$(DIST_BUNDLE)"/Contents/Resources/$(TARGET) dist/"$(DIST_BUNDLE)"/Contents/Resources/$(TARGET) $(OTHER_RACK_DIR)/dist/"$(DIST_BUNDLE)"/Contents/Resources/$(TARGET)
+	lipo -create -output dist/"$(DIST_BUNDLE)"/Contents/MacOS/$(STANDALONE_TARGET) dist/"$(DIST_BUNDLE)"/Contents/MacOS/$(STANDALONE_TARGET) $(OTHER_RACK_DIR)/dist/"$(DIST_BUNDLE)"/Contents/MacOS/$(STANDALONE_TARGET)
+	# Fundamental package
+	cp $(OTHER_RACK_DIR)/dist/"$(DIST_BUNDLE)"/Contents/Resources/Fundamental-*.vcvplugin dist/"$(DIST_BUNDLE)"/Contents/Resources/
+endif
+
+
+notarize:
+ifdef ARCH_MAC
+	# Submit installer package to Apple
+	xcrun notarytool submit --keychain-profile "VCV" --wait dist/$(DIST_NAME).pkg
+	# Mark app as notarized
+	xcrun stapler staple dist/$(DIST_NAME).pkg
+	# Check notarization
+	stapler validate dist/$(DIST_NAME).pkg
+endif
+
+
+install: uninstall
+ifdef ARCH_MAC
+	sudo installer -pkg dist/$(DIST_NAME).pkg -target /
+endif
+
+
+uninstall:
+ifdef ARCH_MAC
+	sudo rm -rf /Applications/"$(DIST_BUNDLE)"
+endif
+
+
+cleandist:
+	rm -rfv dist
+
 
 .DEFAULT_GOAL := all
-.PHONY: all dep run debug clean dist upload src plugins
+.PHONY: all dep run debug clean plugins dist sdk package lipo notarize

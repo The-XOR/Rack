@@ -1,10 +1,13 @@
 #pragma once
+#include <vector>
+#include <deque>
+
+#include <jansson.h>
+
 #include <common.hpp>
 #include <math.hpp>
 #include <color.hpp>
 #include <plugin/Model.hpp>
-#include <vector>
-#include <jansson.h>
 
 
 namespace rack {
@@ -16,7 +19,7 @@ struct CableWidget;
 } // namespace app
 
 
-/** Undo history actions for the Rack application */
+/** Action history for UI undo/redo */
 namespace history {
 
 
@@ -61,14 +64,14 @@ struct ComplexAction : Action {
 Subclass this to create your own custom actions for your module.
 */
 struct ModuleAction : Action {
-	int moduleId;
+	int64_t moduleId = -1;
 };
 
 
 struct ModuleAdd : ModuleAction {
-	plugin::Model* model;
+	plugin::Model* model = NULL;
 	math::Vec pos;
-	json_t* moduleJ;
+	json_t* moduleJ = NULL;
 	ModuleAdd() {
 		name = "add module";
 	}
@@ -98,7 +101,7 @@ struct ModuleMove : ModuleAction {
 
 
 struct ModuleBypass : ModuleAction {
-	bool bypass;
+	bool bypassed = false;
 	void undo() override;
 	void redo() override;
 	ModuleBypass() {
@@ -108,8 +111,8 @@ struct ModuleBypass : ModuleAction {
 
 
 struct ModuleChange : ModuleAction {
-	json_t* oldModuleJ;
-	json_t* newModuleJ;
+	json_t* oldModuleJ = NULL;
+	json_t* newModuleJ = NULL;
 	ModuleChange() {
 		name = "change module";
 	}
@@ -120,9 +123,9 @@ struct ModuleChange : ModuleAction {
 
 
 struct ParamChange : ModuleAction {
-	int paramId;
-	float oldValue;
-	float newValue;
+	int paramId = -1;
+	float oldValue = 0.f;
+	float newValue = 0.f;
 	void undo() override;
 	void redo() override;
 	ParamChange() {
@@ -132,13 +135,14 @@ struct ParamChange : ModuleAction {
 
 
 struct CableAdd : Action {
-	int cableId;
-	int outputModuleId;
-	int outputId;
-	int inputModuleId;
-	int inputId;
-	NVGcolor color;
+	int64_t cableId = -1;
+	int64_t inputModuleId = -1;
+	int inputId = -1;
+	int64_t outputModuleId = -1;
+	int outputId = -1;
+	NVGcolor color = color::BLACK_TRANSPARENT;
 	void setCable(app::CableWidget* cw);
+	bool isCable(app::CableWidget* cw) const;
 	void undo() override;
 	void redo() override;
 	CableAdd() {
@@ -154,15 +158,31 @@ struct CableRemove : InverseAction<CableAdd> {
 };
 
 
+struct CableColorChange : Action {
+	int64_t cableId = -1;
+	NVGcolor newColor = color::BLACK_TRANSPARENT;
+	NVGcolor oldColor = color::BLACK_TRANSPARENT;
+	void setCable(app::CableWidget* cw);
+	void undo() override;
+	void redo() override;
+	CableColorChange() {
+		name = "change cable color";
+	}
+};
+
+
 struct State {
-	std::vector<Action*> actions;
+	struct Internal;
+	Internal* internal;
+
+	std::deque<Action*> actions;
 	int actionIndex;
 	/** Action index of saved patch state. */
 	int savedIndex;
 
-	State();
-	~State();
-	void clear();
+	PRIVATE State();
+	PRIVATE ~State();
+	PRIVATE void clear();
 	void push(Action* action);
 	void undo();
 	void redo();

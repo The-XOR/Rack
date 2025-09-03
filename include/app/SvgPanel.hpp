@@ -3,7 +3,7 @@
 #include <widget/TransparentWidget.hpp>
 #include <widget/FramebufferWidget.hpp>
 #include <widget/SvgWidget.hpp>
-#include <app.hpp>
+#include <settings.hpp>
 
 
 namespace rack {
@@ -15,13 +15,36 @@ struct PanelBorder : widget::TransparentWidget {
 };
 
 
-struct SvgPanel : widget::FramebufferWidget {
+struct SvgPanel : widget::Widget {
+	widget::FramebufferWidget* fb;
+	widget::SvgWidget* sw;
+	PanelBorder* panelBorder;
+	std::shared_ptr<window::Svg> svg;
+
+	SvgPanel();
 	void step() override;
-	void setBackground(std::shared_ptr<Svg> svg);
+	void setBackground(std::shared_ptr<window::Svg> svg);
 };
 
 
 DEPRECATED typedef SvgPanel SVGPanel;
+
+
+struct ThemedSvgPanel : SvgPanel {
+	std::shared_ptr<window::Svg> lightSvg;
+	std::shared_ptr<window::Svg> darkSvg;
+
+	void setBackground(std::shared_ptr<window::Svg> lightSvg, std::shared_ptr<window::Svg> darkSvg) {
+		this->lightSvg = lightSvg;
+		this->darkSvg = darkSvg;
+		SvgPanel::setBackground(settings::preferDarkPanels ? darkSvg : lightSvg);
+	}
+
+	void step() override {
+		SvgPanel::setBackground(settings::preferDarkPanels ? darkSvg : lightSvg);
+		SvgPanel::step();
+	}
+};
 
 
 } // namespace app

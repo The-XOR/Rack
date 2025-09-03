@@ -1,4 +1,5 @@
 #include <app/SvgPanel.hpp>
+#include <context.hpp>
 
 
 namespace rack {
@@ -15,25 +16,44 @@ void PanelBorder::draw(const DrawArgs& args) {
 }
 
 
-void SvgPanel::step() {
-	if (math::isNear(APP->window->pixelRatio, 1.0)) {
-		// Small details draw poorly at low DPI, so oversample when drawing to the framebuffer
-		oversample = 2.0;
-	}
-	FramebufferWidget::step();
+SvgPanel::SvgPanel() {
+	fb = new widget::FramebufferWidget;
+	addChild(fb);
+
+	sw = new widget::SvgWidget;
+	fb->addChild(sw);
+
+	panelBorder = new PanelBorder;
+	fb->addChild(panelBorder);
 }
 
-void SvgPanel::setBackground(std::shared_ptr<Svg> svg) {
-	widget::SvgWidget* sw = new widget::SvgWidget;
+
+void SvgPanel::step() {
+	if (APP->window->pixelRatio < 2.0) {
+		// Small details draw poorly at low DPI, so oversample when drawing to the framebuffer
+		fb->oversample = 2.0;
+	}
+	else {
+		fb->oversample = 1.0;
+	}
+
+	Widget::step();
+}
+
+
+void SvgPanel::setBackground(std::shared_ptr<window::Svg> svg) {
+	if (svg == this->svg)
+		return;
+	this->svg = svg;
+
 	sw->setSvg(svg);
-	addChild(sw);
 
-	// Set size
-	box.size = sw->box.size.div(RACK_GRID_SIZE).round().mult(RACK_GRID_SIZE);
+	// Round framebuffer size to nearest grid
+	fb->box.size = sw->box.size.div(RACK_GRID_SIZE).round().mult(RACK_GRID_SIZE);
+	panelBorder->box.size = fb->box.size;
+	box.size = fb->box.size;
 
-	PanelBorder* pb = new PanelBorder;
-	pb->box.size = box.size;
-	addChild(pb);
+	fb->setDirty();
 }
 
 

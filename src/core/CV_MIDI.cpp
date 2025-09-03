@@ -6,8 +6,8 @@ namespace core {
 
 
 struct MidiOutput : dsp::MidiGenerator<PORT_MAX_CHANNELS>, midi::Output {
-	void onMessage(midi::Message message) override {
-		midi::Output::sendMessage(message);
+	void onMessage(const midi::Message& message) override {
+		Output::sendMessage(message);
 	}
 
 	void reset() {
@@ -44,10 +44,22 @@ struct CV_MIDI : Module {
 	};
 
 	MidiOutput midiOutput;
-	//float rateLimiterPhase = 0.f;
+	dsp::Timer rateLimiterTimer;
 
 	CV_MIDI() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
+		configInput(PITCH_INPUT, "1V/octave pitch");
+		configInput(GATE_INPUT, "Gate");
+		configInput(VEL_INPUT, "Velocity");
+		configInput(AFT_INPUT, "Aftertouch");
+		configInput(PW_INPUT, "Pitch wheel");
+		configInput(MW_INPUT, "Mod wheel");
+		configInput(CLK_INPUT, "Clock");
+		configInput(VOL_INPUT, "Volume");
+		configInput(PAN_INPUT, "Pan");
+		configInput(START_INPUT, "Start trigger");
+		configInput(STOP_INPUT, "Stop trigger");
+		configInput(CONTINUE_INPUT, "Continue trigger");
 		onReset();
 	}
 
@@ -56,15 +68,16 @@ struct CV_MIDI : Module {
 	}
 
 	void process(const ProcessArgs& args) override {
-		/*const float rateLimiterPeriod = 0.005f;
-		rateLimiterPhase += args.sampleTime / rateLimiterPeriod;
-		if (rateLimiterPhase >= 1.f) {
-			rateLimiterPhase -= 1.f;
-		}
-		else {
-			return;
-		}
-riduzione jitter*/
+		// MIDI baud rate is 31250 b/s, or 3125 B/s.
+		// CC messages are 3 bytes, so we can send a maximum of 1041 CC messages per second.
+		// Since multiple CCs can be generated, play it safe and limit the CC rate to 200 Hz.
+		const float rateLimiterPeriod = 1 / 200.f;
+		bool rateLimiterTriggered = (rateLimiterTimer.process(args.sampleTime) >= rateLimiterPeriod);
+		if (rateLimiterTriggered)
+			rateLimiterTimer.time -= rateLimiterPeriod;
+
+		midiOutput.setFrame(args.frame);
+
 		for (int c = 0; c < inputs[PITCH_INPUT].getChannels(); c++) {
 			int vel = (int) std::round(inputs[VEL_INPUT].getNormalPolyVoltage(10.f * 100 / 127, c) / 10.f * 127);
 			vel = clamp(vel, 0, 127);
@@ -80,21 +93,23 @@ riduzione jitter*/
 			midiOutput.setKeyPressure(aft, c);
 		}
 
-		int pw = (int) std::round((inputs[PW_INPUT].getVoltage() + 5.f) / 10.f * 0x4000);
-		pw = clamp(pw, 0, 0x3fff);
-		midiOutput.setPitchWheel(pw);
+		if (rateLimiterTriggered) {
+			int pw = (int) std::round((inputs[PW_INPUT].getVoltage() + 5.f) / 10.f * 0x4000);
+			pw = clamp(pw, 0, 0x3fff);
+			midiOutput.setPitchWheel(pw);
 
-		int mw = (int) std::round(inputs[MW_INPUT].getVoltage() / 10.f * 127);
-		mw = clamp(mw, 0, 127);
-		midiOutput.setModWheel(mw);
+			int mw = (int) std::round(inputs[MW_INPUT].getVoltage() / 10.f * 127);
+			mw = clamp(mw, 0, 127);
+			midiOutput.setModWheel(mw);
 
-		int vol = (int) std::round(inputs[VOL_INPUT].getNormalVoltage(10.f) / 10.f * 127);
-		vol = clamp(vol, 0, 127);
-		midiOutput.setVolume(vol);
+			int vol = (int) std::round(inputs[VOL_INPUT].getNormalVoltage(10.f) / 10.f * 127);
+			vol = clamp(vol, 0, 127);
+			midiOutput.setVolume(vol);
 
-		int pan = (int) std::round((inputs[PAN_INPUT].getVoltage() + 5.f) / 10.f * 127);
-		pan = clamp(pan, 0, 127);
-		midiOutput.setPan(pan);
+			int pan = (int) std::round((inputs[PAN_INPUT].getVoltage() + 5.f) / 10.f * 127);
+			pan = clamp(pan, 0, 127);
+			midiOutput.setPan(pan);
+		}
 
 		bool clk = inputs[CLK_INPUT].getVoltage() >= 1.f;
 		midiOutput.setClock(clk);
@@ -125,7 +140,7 @@ riduzione jitter*/
 
 struct CV_MIDIPanicItem : MenuItem {
 	CV_MIDI* module;
-	void onAction(const event::Action& e) override {
+	void onAction(const ActionEvent& e) override {
 		module->midiOutput.panic();
 	}
 };
@@ -134,41 +149,40 @@ struct CV_MIDIPanicItem : MenuItem {
 struct CV_MIDIWidget : ModuleWidget {
 	CV_MIDIWidget(CV_MIDI* module) {
 		setModule(module);
-		setPanel(APP->window->loadSvg(asset::system("res/Core/CV-MIDI.svg")));
+		setPanel(createPanel(asset::system("res/Core/CV_MIDI.svg"), asset::system("res/Core/CV_MIDI-dark.svg")));
 
-		addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
-		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
-		addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-		addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+		addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, 0)));
+		addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
+		addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+		addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(9, 64)), module, CV_MIDI::PITCH_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(20, 64)), module, CV_MIDI::GATE_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(32, 64)), module, CV_MIDI::VEL_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(9, 80)), module, CV_MIDI::AFT_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(20, 80)), module, CV_MIDI::PW_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(32, 80)), module, CV_MIDI::MW_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(9, 96)), module, CV_MIDI::CLK_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(20, 96)), module, CV_MIDI::VOL_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(32, 96)), module, CV_MIDI::PAN_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(9, 112)), module, CV_MIDI::START_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(20, 112)), module, CV_MIDI::STOP_INPUT));
-		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(32, 112)), module, CV_MIDI::CONTINUE_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(7.906, 64.347)), module, CV_MIDI::PITCH_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(20.249, 64.347)), module, CV_MIDI::GATE_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(32.591, 64.347)), module, CV_MIDI::VEL_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(7.906, 80.603)), module, CV_MIDI::AFT_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(20.249, 80.603)), module, CV_MIDI::PW_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(32.591, 80.603)), module, CV_MIDI::MW_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(7.906, 96.859)), module, CV_MIDI::CLK_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(20.249, 96.707)), module, CV_MIDI::VOL_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(32.591, 96.859)), module, CV_MIDI::PAN_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(7.906, 113.115)), module, CV_MIDI::START_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(20.249, 113.115)), module, CV_MIDI::STOP_INPUT));
+		addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(32.591, 112.975)), module, CV_MIDI::CONTINUE_INPUT));
 
-		MidiWidget* midiWidget = createWidget<MidiWidget>(mm2px(Vec(3.41891, 14.8373)));
-		midiWidget->box.size = mm2px(Vec(33.840, 28));
-		midiWidget->setMidiPort(module ? &module->midiOutput : NULL);
-		addChild(midiWidget);
+		MidiDisplay* display = createWidget<MidiDisplay>(mm2px(Vec(0.0, 13.039)));
+		display->box.size = mm2px(Vec(40.64, 29.021));
+		display->setMidiPort(module ? &module->midiOutput : NULL);
+		addChild(display);
 	}
 
 	void appendContextMenu(Menu* menu) override {
 		CV_MIDI* module = dynamic_cast<CV_MIDI*>(this->module);
 
-		menu->addChild(new MenuEntry);
+		menu->addChild(new MenuSeparator);
 
-		CV_MIDIPanicItem* panicItem = new CV_MIDIPanicItem;
-		panicItem->text = "Panic";
-		panicItem->module = module;
-		menu->addChild(panicItem);
+		menu->addChild(createMenuItem("Panic", "",
+			[=]() {module->midiOutput.panic();}
+		));
 	}
 };
 

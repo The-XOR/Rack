@@ -17,7 +17,12 @@ SvgSwitch::SvgSwitch() {
 	fb->addChild(sw);
 }
 
-void SvgSwitch::addFrame(std::shared_ptr<Svg> svg) {
+
+SvgSwitch::~SvgSwitch() {
+}
+
+
+void SvgSwitch::addFrame(std::shared_ptr<window::Svg> svg) {
 	frames.push_back(svg);
 	// If this is our first frame, automatically set SVG and size
 	if (!sw->svg) {
@@ -30,12 +35,46 @@ void SvgSwitch::addFrame(std::shared_ptr<Svg> svg) {
 	}
 }
 
-void SvgSwitch::onChange(const event::Change& e) {
-	if (!frames.empty() && paramQuantity) {
-		int index = (int) std::round(paramQuantity->getValue() - paramQuantity->getMinValue());
-		index = math::clamp(index, 0, (int) frames.size() - 1);
-		sw->setSvg(frames[index]);
-		fb->dirty = true;
+
+void SvgSwitch::onDragStart(const DragStartEvent& e) {
+	Switch::onDragStart(e);
+	if (e.button != GLFW_MOUSE_BUTTON_LEFT)
+		return;
+
+	// Set down frame if latch
+	if (latch) {
+		if (frames.size() >= 2) {
+			sw->setSvg(frames[1]);
+			fb->setDirty();
+		}
+	}
+}
+
+
+void SvgSwitch::onDragEnd(const DragEndEvent& e) {
+	Switch::onDragEnd(e);
+	if (e.button != GLFW_MOUSE_BUTTON_LEFT)
+		return;
+
+	// Set up frame if latch
+	if (latch) {
+		if (frames.size() >= 1) {
+			sw->setSvg(frames[0]);
+			fb->setDirty();
+		}
+	}
+}
+
+
+void SvgSwitch::onChange(const ChangeEvent& e) {
+	if (!latch) {
+		engine::ParamQuantity* pq = getParamQuantity();
+		if (!frames.empty() && pq) {
+			int index = (int) std::round(pq->getValue() - pq->getMinValue());
+			index = math::clamp(index, 0, (int) frames.size() - 1);
+			sw->setSvg(frames[index]);
+			fb->setDirty();
+		}
 	}
 	ParamWidget::onChange(e);
 }
