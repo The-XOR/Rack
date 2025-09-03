@@ -32,6 +32,13 @@ struct Message {
 		bytes.resize(size);
 	}
 
+	void setSysex(uint8_t *msg, uint8_t len)
+	{
+		setSize(len);
+		for(int k =0; k < len; k++)
+			bytes[k] = msg[k];
+	}
+
 	uint8_t getChannel() const {
 		if (bytes.size() < 1)
 			return 0;
