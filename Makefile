@@ -128,7 +128,7 @@ ifdef ARCH_WIN
 	gdb --args ./$< -d
 endif
 ifdef ARCH_LIN
-	gdb --args ./$< -d
+	gdb --args ./$< 
 endif
 
 perf: $(STANDALONE_TARGET)

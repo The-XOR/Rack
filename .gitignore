@@ -19,6 +19,7 @@
 
 # Rack folders
 /plugins
+/plugins-lin-x64
 /disabledplugins
 /patches
 /presets
@@ -27,3 +28,4 @@
 /settings.json
 /screenshots
 /selections
+log.txt

@@ -50,10 +50,7 @@
 - [Fuzzy Search Database](https://bitbucket.org/j_norberg/fuzzysearchdatabase) (written by Nils Jonas Norberg for VCV Rack's module browser)
 - [TinyExpr](https://codeplea.com/tinyexpr) (for math evaluation in parameter context menu)
 
-## Contributions
+## ATTENSIUN
 
-VCV cannot accept free contributions to Rack itself, but we encourage you to
-
-- Send us feature requests and bug reports.
-- Create a plugin that extends Rack's functionality. Most of Rack's functionality is exposed in its public plugin API.
-- Work at VCV! Check job openings at <https://vcvrack.com/jobs>
+Su linux, bisogna installare zenity:
+sudo pacman -S zenity
