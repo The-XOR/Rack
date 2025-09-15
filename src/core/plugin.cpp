@@ -9,6 +9,7 @@ void init(rack::Plugin* p) {
 	p->addModel(modelAudio2);
 	p->addModel(modelAudio8);
 	p->addModel(modelAudio16);
+	p->addModel(modelAudio32);
 	p->addModel(modelMIDI_CV);
 	p->addModel(modelMIDICC_CV);
 	p->addModel(modelMIDI_Gate);

@@ -34,3 +34,22 @@ make dep
 Build the plugin.
 
 make
+
+----- estraordinerio
+
+abbisognansi che le seguenti librerie siano presenti in questa cartella, le librerie si trovano in 
+<percorso msys>\mingw64\bin
+
+Le librerie sono:
+- libwinpthread-1.dll
+- libgcc_s_seh-1.dll
+- libstdc++-6.dll
+
+---- plaghins
+le plaghins hanno cambiato abitazione, ora sono in %appdata%\..\local\rack2\plugins-win-x64
+la cosa piu' veloce e' fare delle giunzioni, quindi:
+mklink "%appdata%\..\local\rack2\plugins-win-x64\Fundamental" .\plugins\Fundamental
+mklink "%appdata%\..\local\rack2\plugins-win-x64\RackPlugins" .\plugins\RackPlugins
+mklink "%appdata%\..\local\rack2\plugins-win-x64\XXXedo" .\plugins\XXXedo
+
+
