@@ -627,22 +627,22 @@ struct AudioWidget : ModuleWidget {
 			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(77.114, 74.276)), module, TAudio::AUDIO_INPUTS + 14));
 			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(88.664, 74.276)), module, TAudio::AUDIO_INPUTS + 15));
 
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+7.815, 57.929)), module, TAudio::AUDIO_INPUTS + 16));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+19.364, 57.929)), module, TAudio::AUDIO_INPUTS + 17));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+30.914, 57.929)), module, TAudio::AUDIO_INPUTS + 18));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+42.464, 57.929)), module, TAudio::AUDIO_INPUTS + 19));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+54.015, 57.929)), module, TAudio::AUDIO_INPUTS + 20));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+65.565, 57.914)), module, TAudio::AUDIO_INPUTS + 21));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+77.114, 57.914)), module, TAudio::AUDIO_INPUTS + 22));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+88.664, 57.914)), module, TAudio::AUDIO_INPUTS + 23));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+7.815, 74.276)), module, TAudio::AUDIO_INPUTS +24));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+19.364, 74.276)), module, TAudio::AUDIO_INPUTS +25));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+30.914, 74.276)), module, TAudio::AUDIO_INPUTS + 26));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+42.464, 74.276)), module, TAudio::AUDIO_INPUTS + 27));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+54.015, 74.291)), module, TAudio::AUDIO_INPUTS + 28));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+65.565, 74.276)), module, TAudio::AUDIO_INPUTS + 29));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+77.114, 74.276)), module, TAudio::AUDIO_INPUTS + 30));
-			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(1+88.664, 74.276)), module, TAudio::AUDIO_INPUTS + 31));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(100.214, 57.929)), module, TAudio::AUDIO_INPUTS + 16));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(111.764, 57.929)), module, TAudio::AUDIO_INPUTS + 17));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(123.314, 57.929)), module, TAudio::AUDIO_INPUTS + 18));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(134.864, 57.929)), module, TAudio::AUDIO_INPUTS + 19));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(146.414, 57.929)), module, TAudio::AUDIO_INPUTS + 20));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(157.964, 57.914)), module, TAudio::AUDIO_INPUTS + 21));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(169.514, 57.914)), module, TAudio::AUDIO_INPUTS + 22));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(181.064, 57.914)), module, TAudio::AUDIO_INPUTS + 23));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(100.214, 74.276)), module, TAudio::AUDIO_INPUTS +24));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(111.764, 74.276)), module, TAudio::AUDIO_INPUTS +25));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(123.314, 74.276)), module, TAudio::AUDIO_INPUTS + 26));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(134.864, 74.276)), module, TAudio::AUDIO_INPUTS + 27));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(146.414, 74.291)), module, TAudio::AUDIO_INPUTS + 28));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(157.964, 74.276)), module, TAudio::AUDIO_INPUTS + 29));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(169.514, 74.276)), module, TAudio::AUDIO_INPUTS + 30));
+			addInput(createInputCentered<ThemedPJ301MPort>(mm2px(Vec(181.064, 74.276)), module, TAudio::AUDIO_INPUTS + 31));
 
 			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(7.815, 96.859)), module, TAudio::AUDIO_OUTPUTS + 0));
 			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(19.364, 96.859)), module, TAudio::AUDIO_OUTPUTS + 1));
@@ -661,22 +661,22 @@ struct AudioWidget : ModuleWidget {
 			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(77.114, 113.115)), module, TAudio::AUDIO_OUTPUTS + 14));
 			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(88.664, 113.115)), module, TAudio::AUDIO_OUTPUTS + 15));
 
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+7.815, 96.859)), module, TAudio::AUDIO_OUTPUTS + 16));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+19.364, 96.859)), module, TAudio::AUDIO_OUTPUTS + 17));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+30.914, 96.859)), module, TAudio::AUDIO_OUTPUTS + 18));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+42.464, 96.859)), module, TAudio::AUDIO_OUTPUTS + 19));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+54.015, 96.859)), module, TAudio::AUDIO_OUTPUTS + 20));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+65.565, 96.859)), module, TAudio::AUDIO_OUTPUTS + 21));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+77.114, 96.859)), module, TAudio::AUDIO_OUTPUTS + 22));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+88.664, 96.859)), module, TAudio::AUDIO_OUTPUTS + 23));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+7.815, 113.115)), module, TAudio::AUDIO_OUTPUTS + 24));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+19.364, 113.115)), module, TAudio::AUDIO_OUTPUTS + 25));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+30.914, 113.115)), module, TAudio::AUDIO_OUTPUTS + 26));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+42.464, 113.115)), module, TAudio::AUDIO_OUTPUTS + 27));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+54.015, 113.115)), module, TAudio::AUDIO_OUTPUTS + 28));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+65.565, 113.115)), module, TAudio::AUDIO_OUTPUTS + 29));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+77.114, 113.115)), module, TAudio::AUDIO_OUTPUTS + 30));
-			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(1+88.664, 113.115)), module, TAudio::AUDIO_OUTPUTS + 31));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(100.214, 96.859)), module, TAudio::AUDIO_OUTPUTS + 16));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(111.764, 96.859)), module, TAudio::AUDIO_OUTPUTS + 17));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(123.314, 96.859)), module, TAudio::AUDIO_OUTPUTS + 18));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(134.864, 96.859)), module, TAudio::AUDIO_OUTPUTS + 19));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(146.414, 96.859)), module, TAudio::AUDIO_OUTPUTS + 20));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(157.964, 96.859)), module, TAudio::AUDIO_OUTPUTS + 21));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(169.514, 96.859)), module, TAudio::AUDIO_OUTPUTS + 22));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(181.064, 96.859)), module, TAudio::AUDIO_OUTPUTS + 23));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(100.214, 113.115)), module, TAudio::AUDIO_OUTPUTS + 24));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(111.764, 113.115)), module, TAudio::AUDIO_OUTPUTS + 25));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(123.314, 113.115)), module, TAudio::AUDIO_OUTPUTS + 26));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(134.864, 113.115)), module, TAudio::AUDIO_OUTPUTS + 27));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(146.414, 113.115)), module, TAudio::AUDIO_OUTPUTS + 28));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(157.964, 113.115)), module, TAudio::AUDIO_OUTPUTS + 29));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(169.514, 113.115)), module, TAudio::AUDIO_OUTPUTS + 30));
+			addOutput(createOutputCentered<ThemedPJ301MPort>(mm2px(Vec(181.064, 113.115)), module, TAudio::AUDIO_OUTPUTS + 31));
 
 			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(13.545, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 0));
 			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(36.779, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 1));
@@ -687,14 +687,14 @@ struct AudioWidget : ModuleWidget {
 			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(59.745, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 6));
 			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(82.98, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 7));
 
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+13.545, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 8));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+36.779, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 9));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+59.745, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 10));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+82.98, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 11));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+13.545, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 12));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+36.779, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 13));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+59.745, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 14));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+82.98, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 15));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(105.98, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 8));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(128.98, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 9));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(151.98, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 10));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(174.98, 52.168)), module, TAudio::INPUT_LIGHTS + 2 * 11));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(105.98, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 12));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(128.98, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 13));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(151.98, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 14));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(174.98, 68.53)), module, TAudio::INPUT_LIGHTS + 2 * 15));
 
 
 			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(13.545, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 0));
@@ -706,14 +706,14 @@ struct AudioWidget : ModuleWidget {
 			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(59.745, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 6));
 			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(82.844, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 7));
 
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+13.545, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 8));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+36.644, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 9));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+59.745, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 10));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+82.844, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 11));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+13.545, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 12));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+36.644, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 13));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+59.745, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 14));
-			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(1+82.844, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 15));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(105.98, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 8));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(128.98, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 9));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(151.98, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 10));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(174.98, 90.791)), module, TAudio::OUTPUT_LIGHTS + 2 * 11));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(105.98, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 12));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(128.98, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 13));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(151.98, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 14));
+			addChild(createLightCentered<SmallLight<GreenRedLight>>(mm2px(Vec(174.98, 107.097)), module, TAudio::OUTPUT_LIGHTS + 2 * 15));
 
 			AudioDisplay* display = createWidget<AudioDisplay>(mm2px(Vec(0.0, 13.039)));
 			display->box.size = mm2px(Vec(96.52, 29.021));
