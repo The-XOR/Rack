@@ -60,6 +60,9 @@ all: $(TARGET)
 
 include $(RACK_DIR)/compile.mk
 
+fordebug:
+	$(MAKE) DONT_OPTIMIZE=1 all
+
 clean:
 	rm -rfv build $(TARGET) dist
 

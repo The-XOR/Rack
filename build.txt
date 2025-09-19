@@ -6,10 +6,14 @@ git submodule update --init --recursive
 Build dependencies locally. You may add -j4 (or your number of logical cores) to your make commands to parallelize builds. This may take 15-60 minutes.
 
 make dep
-Build Rack. This may take 1-5 minutes.
+Build Rack dependencies. This may take 1-5 minutes.
 
 make
-Run Rack.
+compile Rack.
+
+NOTA:
+make fordebug 
+compila una versione senza ottimizzazioni del rack, utile per debuggare e per le occasioni di gala
 
 make run
 Building Rack plugins

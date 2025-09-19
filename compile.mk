@@ -14,9 +14,14 @@ FLAGS += -MMD -MP
 # Debugger symbols. These are removed with `strip`.
 FLAGS += -g
 # Optimization
-FLAGS += -O3 -funsafe-math-optimizations -fno-omit-frame-pointer
+FLAGS += -funsafe-math-optimizations
+ifdef DONT_OPTIMIZE
+	FLAGS += -O1
+else
+	FLAGS += -Wno-unused-parameter -fno-omit-frame-pointer -O3
+endif
 # Warnings
-FLAGS += -Wall -Wextra -Wno-unused-parameter
+FLAGS += -Wall -Wextra 
 # C++ standard
 CXXFLAGS += -std=c++11
 

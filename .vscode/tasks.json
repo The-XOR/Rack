@@ -6,14 +6,14 @@
             "label": "run makefile",
             "command": "make",
             "problemMatcher": [
-                "$gcc"
+                "$g++"
             ],
             "group": "build"
         },
         {
             "type": "cppbuild",
-            "label": "C/C++: gcc.exe build active file",
-            "command": "C:/msys64/mingw64/bin/gcc.exe",
+            "label": "C/C++: g++.exe build active file",
+            "command": "C:/msys64/mingw64/bin/g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
@@ -25,13 +25,13 @@
                 "cwd": "${fileDirname}"
             },
             "problemMatcher": [
-                "$gcc"
+                "$g++"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "gcc compiler"
+            "detail": "g++ compiler"
         }
     ]
 }

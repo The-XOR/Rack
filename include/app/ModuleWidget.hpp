@@ -85,8 +85,8 @@ struct ModuleWidget : widget::OpaqueWidget {
 	void onDragMove(const DragMoveEvent& e) override;
 	void onDragHover(const DragHoverEvent& e) override;
 
-	virtual json_t* toJson();
-	virtual void fromJson(json_t* rootJ);
+	json_t* toJson();
+	void fromJson(json_t* rootJ);
 	/** Returns whether paste was successful. */
 	bool pasteJsonAction(json_t* rootJ);
 	void copyClipboard();
