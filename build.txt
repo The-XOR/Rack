@@ -58,5 +58,10 @@ mklink "%appdata%\..\local\rack2\plugins-win-x64\XXXedo" .\plugins\XXXedo
 
 
 ======= debug con vscode ====
+- per lanciare vscode da msys2, la cosa piu' migliore e':
+  nano .bashrc
+  e aggiungere in fondo la riga:
+  alias code='"/C/Program Files/Microsoft VS Code/Code.exe" &'
+
 - aggiungere al path di windows: c:\msys64\mingw64\bin\ e verificare che -aprendo una finestra cmd.exe- il comando gcc --version auttoputti un quaccheccosa
 - aggiungere le estensioni: c/c++ c/c++ extension pack c/c+ themes
