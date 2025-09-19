@@ -53,3 +53,6 @@ mklink "%appdata%\..\local\rack2\plugins-win-x64\RackPlugins" .\plugins\RackPlug
 mklink "%appdata%\..\local\rack2\plugins-win-x64\XXXedo" .\plugins\XXXedo
 
 
+======= debug con vscode ====
+- aggiungere al path di windows: c:\msys64\mingw64\bin\ e verificare che -aprendo una finestra cmd.exe- il comando gcc --version auttoputti un quaccheccosa
+- aggiungere le estensioni: c/c++ c/c++ extension pack c/c+ themes
