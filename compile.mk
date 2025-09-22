@@ -16,7 +16,7 @@ FLAGS += -g
 # Optimization
 FLAGS += -funsafe-math-optimizations
 ifdef DONT_OPTIMIZE
-	FLAGS += -O1
+	FLAGS += -O1  -Wno-unused-parameter
 else
 	FLAGS += -Wno-unused-parameter -fno-omit-frame-pointer -O3
 endif

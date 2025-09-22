@@ -85,7 +85,7 @@
     "MSYSTEM": "MINGW64",
     "CHERE_INVOKING": "1"
 },
-"C_Cpp.default.compilerPath": "C:/msys64/ucrt64/bin/gcc.exe",
+"C_Cpp.default.compilerPath": "C:/msys64/mingw64/bin/gcc.exe",
 
 "code-runner.executorMap": {
         "cpp": "cd $dir && gcc $fileName -o $fileNameWithoutExt -g && $dir$fileNameWithoutExt"
