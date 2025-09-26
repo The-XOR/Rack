@@ -4,7 +4,6 @@
 #include <app/RackScrollWidget.hpp>
 #include <app/RackWidget.hpp>
 
-
 namespace rack {
 namespace app {
 
