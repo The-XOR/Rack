@@ -107,6 +107,11 @@ void resetCables() {
 		color::fromHexString("#00b56e"), // green
 		color::fromHexString("#3695ef"), // blue
 		color::fromHexString("#8b4ade"), // purple
+        color::fromHexString("#FF8CC6"),
+        color::fromHexString("#141414"),
+        color::fromHexString("#D2D2D2"),
+        color::fromHexString("#FF8000"),
+        color::fromHexString("#CA0000"),		
 	};
 	cableLabels.clear();
 	cableLabels.resize(cableColors.size());
