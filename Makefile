@@ -178,7 +178,7 @@ else
 endif
 DIST_MD := $(wildcard *.md)
 DIST_HTML := $(patsubst %.md, build/%.html, $(DIST_MD))
-DIST_RES := res cacert.pem Core.json template.vcv LICENSE-GPLv3.txt $(DIST_HTML) translations
+DIST_RES := res cacert.pem Core.json LICENSE-GPLv3.txt $(DIST_HTML) translations
 DIST_SDK_DIR := Rack-SDK
 DIST_SDK = Rack-SDK-$(RACK_VERSION)-$(ARCH_NAME).zip
 FUNDAMENTAL_VERSION ?= 2.6.2
