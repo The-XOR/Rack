@@ -1,7 +1,7 @@
 RACK_DIR ?= .
 RACK_EDITION := Free
 RACK_VERSION_MAJOR := 2
-RACK_VERSION ?= $(patsubst v%,%,$(shell git describe --tags --match "v$(RACK_VERSION_MAJOR).*"))
+RACK_VERSION ?= $(patsubst v%,%,$(shell git describe --tags --abbrev=0 --match "v$(RACK_VERSION_MAJOR).*"))
 
 FLAGS += -Iinclude -Idep/include
 
@@ -184,6 +184,18 @@ DIST_SDK = Rack-SDK-$(RACK_VERSION)-$(ARCH_NAME).zip
 FUNDAMENTAL_VERSION ?= 2.6.2
 FUNDAMENTAL_FILENAME := Fundamental-$(FUNDAMENTAL_VERSION)-$(ARCH_NAME).vcvplugin
 
+version:
+	# "RACK_VERSION_MAJOR : $(RACK_VERSION_MAJOR)"
+	# "Version: $(RACK_VERSION)"
+ifdef ARCH_WIN
+	# "Architettura: Windows"
+endif
+ifdef ARCH_LIN
+	# "Architettura: Linux"
+endif
+ifdef ARCH_MAC
+	# "Architettura: MAC"
+endif
 
 dist: $(TARGET) $(STANDALONE_TARGET) $(DIST_HTML)
 	mkdir -p dist
@@ -324,4 +336,4 @@ cleandist:
 
 
 .DEFAULT_GOAL := all
-.PHONY: all dep run debug clean plugins dist sdk package lipo notarize
+.PHONY: all dep run debug clean plugins dist sdk package lipo notarize version
