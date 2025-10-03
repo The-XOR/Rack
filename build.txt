@@ -32,6 +32,13 @@ cd Fundamental
 git submodule update --init --recursive
 If using the Rack SDK, set the RACK_DIR environment variable by prefixing each of the following commands with RACK_DIR=<Rack SDK dir>.
 
+=============== AHORA SE BISOGNA DE ABILITAR ASIO !!!!!!! ============================================
+In questa sfortunata versione ASIO non e' abilitata, hai detto cazzo. Ora mi corrigerete cosi':
+
+0 - se sono state gia' compilate le dipendeze, eliminare dep\lib\librtaudio.a
+1 - e' stato modificato il makefile in dep in modo da avere sempre abilitato il flag RTAUDIO_API_ASIO=ON
+2 - se era stato compilato Rack in precedenza, eseguire make clean e poi di nuovo make
+
 Build plugin dependencies. (Most plugins don’t require this step.)
 
 make dep
