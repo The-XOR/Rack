@@ -50,7 +50,18 @@
 - [Fuzzy Search Database](https://bitbucket.org/j_norberg/fuzzysearchdatabase) (written by Nils Jonas Norberg for VCV Rack's module browser)
 - [TinyExpr](https://codeplea.com/tinyexpr) (for math evaluation in parameter context menu)
 
+VCV is unable to accept outside code contributions, but if you wish to contribute to the VCV Rack software, you can:
+- Request a feature or report a bug to [VCV Support](https://vcvrack.com/support).
+- [Learn about Rack](https://vcvrack.com/manual/) and answer questions in the [VCV communities](https://vcvrack.com/manual/Communities).
+- [Develop your own Rack plugin](https://vcvrack.com/manual/PluginDevelopmentTutorial), or help maintain an existing plugin.
+- Apply for a [job at VCV](https://vcvrack.com/jobs).
+
 ## ATTENSIUN
 
 Su linux, bisogna installare zenity:
 sudo pacman -S zenity
+
+Per sincronizzare il sincornizzabile:
+1 - git fetch upstream
+2 - git checkout v2
+3 - git merge upstream/v2

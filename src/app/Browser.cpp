@@ -993,7 +993,14 @@ inline void TagButton::onAction(const ActionEvent& e) {
 	menu->addChild(createMenuLabel(widget::getKeyCommandName(0, RACK_MOD_CTRL) + string::translate("key.click") + string::translate("Browser.tagsSelectMultiple")));
 	menu->addChild(new ui::MenuSeparator);
 
-	for (int tagId = 0; tagId < (int) tag::tagAliases.size(); tagId++) {
+	// Sort tag IDs by translation string
+	std::vector<int> tagIds(tag::tagAliases.size());
+	std::iota(tagIds.begin(), tagIds.end(), 0);
+	std::sort(tagIds.begin(), tagIds.end(), [](int a, int b) {
+		return string::translate("tag." + tag::getTag(a)) < string::translate("tag." + tag::getTag(b));
+	});
+
+	for (int tagId : tagIds) {
 		TagItem* tagItem = new TagItem;
 		std::string tag = string::translate("tag." + tag::getTag(tagId));
 		tagItem->text = tag;

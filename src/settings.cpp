@@ -34,6 +34,8 @@ std::string uiTheme = "dark";
 float cableOpacity = 0.5;
 float cableTension = 1.0;
 float rackBrightness = 1.0;
+float spotlightBrightness = 0.2;
+float spotlightRadius = 300.0;
 float haloBrightness = 0.25;
 bool allowCursorLock = true;
 KnobMode knobMode = KNOB_MODE_LINEAR;
@@ -163,6 +165,10 @@ json_t* toJson() {
 	json_object_set_new(rootJ, "cableTension", json_real(cableTension));
 
 	json_object_set_new(rootJ, "rackBrightness", json_real(rackBrightness));
+
+	json_object_set_new(rootJ, "spotlightBrightness", json_real(spotlightBrightness));
+
+	json_object_set_new(rootJ, "spotlightRadius", json_real(spotlightRadius));
 
 	json_object_set_new(rootJ, "haloBrightness", json_real(haloBrightness));
 
@@ -356,6 +362,14 @@ void fromJson(json_t* rootJ) {
 	json_t* rackBrightnessJ = json_object_get(rootJ, "rackBrightness");
 	if (rackBrightnessJ)
 		rackBrightness = json_number_value(rackBrightnessJ);
+
+	json_t* spotlightBrightnessJ = json_object_get(rootJ, "spotlightBrightness");
+	if (spotlightBrightnessJ)
+		spotlightBrightness = json_number_value(spotlightBrightnessJ);
+
+	json_t* spotlightRadiusJ = json_object_get(rootJ, "spotlightRadius");
+	if (spotlightRadiusJ)
+		spotlightRadius = json_number_value(spotlightRadiusJ);
 
 	json_t* haloBrightnessJ = json_object_get(rootJ, "haloBrightness");
 	if (haloBrightnessJ)
@@ -589,7 +603,6 @@ void save(std::string path) {
 
 	json_dumpf(rootJ, file, JSON_INDENT(2));
 	std::fclose(file);
-	system::remove(path);
 	system::rename(tmpPath, path);
 }
 

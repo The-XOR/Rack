@@ -21,7 +21,7 @@ else
 	FLAGS += -Wno-unused-parameter -fno-omit-frame-pointer -O3
 endif
 # Warnings
-FLAGS += -Wall -Wextra 
+FLAGS += -Wall -Wextra -Wno-unused-parameter -Wno-vla-extension
 # C++ standard
 CXXFLAGS += -std=c++11
 

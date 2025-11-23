@@ -47,6 +47,16 @@ bool startsWith(const std::string& str, const std::string& prefix);
 /** Returns whether a string ends with the given substring. */
 bool endsWith(const std::string& str, const std::string& suffix);
 
+struct Location {
+	/** Line number, 0-indexed */
+	size_t line;
+	/** UTF-8 codepoint index, 0-indexed */
+	size_t column;
+};
+/** Given a byte position of s, returns the 2D UTF-8 location of the cursor. */
+Location positionToLocation(const std::string& s, size_t pos);
+size_t locationToPosition(const std::string& s, Location location);
+
 /** Converts a byte array to a Base64-encoded string.
 https://en.wikipedia.org/wiki/Base64
 */
@@ -56,6 +66,8 @@ std::string toBase64(const std::vector<uint8_t>& data);
 Throws std::runtime_error if string is invalid.
 */
 std::vector<uint8_t> fromBase64(const std::string& str);
+
+int strcasecmp(const char* s1, const char* s2);
 
 struct CaseInsensitiveCompare {
 	/** Returns whether `a < b` using case-insensitive lexical comparison. */

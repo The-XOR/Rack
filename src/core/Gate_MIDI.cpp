@@ -216,9 +216,9 @@ struct Gate_MIDIWidget : ModuleWidget {
 
 		menu->addChild(new MenuSeparator);
 
-		menu->addChild(createBoolPtrMenuItem("Velocity mode", "", &module->velocityMode));
+		menu->addChild(createBoolPtrMenuItem("Velocity from gate amplitude", "", &module->velocityMode));
 
-		menu->addChild(createMenuItem("Panic", "",
+		menu->addChild(createMenuItem("Reset MIDI (Panic)", "",
 			[=]() {module->midiOutput.panic();}
 		));
 	}

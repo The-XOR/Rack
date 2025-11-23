@@ -46,6 +46,8 @@ struct TextField : widget::OpaqueWidget {
 	void pasteClipboard();
 	void cursorToPrevWord();
 	void cursorToNextWord();
+	void cursorToLineStart();
+	void cursorToLineEnd();
 	void createContextMenu();
 };
 
