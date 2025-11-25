@@ -176,7 +176,7 @@ ifdef ARCH_MAC
 else
 	DIST_DIR := Rack$(RACK_VERSION_MAJOR)$(RACK_EDITION)
 endif
-FUNDAMENTAL_VERSION ?= 2.6.4
+FUNDAMENTAL_VERSION ?= 2.6.6 # Match Core.json
 FUNDAMENTAL_FILENAME := Fundamental-$(FUNDAMENTAL_VERSION)-$(ARCH_NAME).vcvplugin
 DIST_MD := $(wildcard *.md)
 DIST_HTML := $(patsubst %.md, build/%.html, $(DIST_MD))
