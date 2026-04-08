@@ -2,7 +2,7 @@ RACK_DIR ?= .
 RACK_EDITION := Free
 RACK_VERSION_MAJOR := 2
 RACK_VERSION ?= $(patsubst v%,%,$(shell git describe --tags --abbrev=0 --match "v$(RACK_VERSION_MAJOR).*"))
-
+FUNDAMENTAL_FILENAME := $(shell echo plugins/Fundamental/dist/*.vcvplugin)
 FLAGS += -Iinclude -Idep/include
 
 include arch.mk
@@ -176,11 +176,9 @@ ifdef ARCH_MAC
 else
 	DIST_DIR := Rack$(RACK_VERSION_MAJOR)$(RACK_EDITION)
 endif
-FUNDAMENTAL_VERSION ?= 2.6.6 # Match Core.json
-FUNDAMENTAL_FILENAME := Fundamental-$(FUNDAMENTAL_VERSION)-$(ARCH_NAME).vcvplugin
 DIST_MD := $(wildcard *.md)
 DIST_HTML := $(patsubst %.md, build/%.html, $(DIST_MD))
-DIST_RES := res cacert.pem Core.json template.vcv LICENSE-GPLv3.txt $(DIST_HTML) translations $(FUNDAMENTAL_FILENAME)
+DIST_RES := res cacert.pem Core.json LICENSE-GPLv3.txt $(DIST_HTML) translations $(FUNDAMENTAL_FILENAME)
 DIST_SDK_DIR := Rack-SDK
 DIST_SDK = Rack-SDK-$(RACK_VERSION)-$(ARCH_NAME).zip
 
@@ -196,9 +194,6 @@ endif
 ifdef ARCH_MAC
 	# "Architettura: MAC"
 endif
-
-$(FUNDAMENTAL_FILENAME):
-	curl -o "$(FUNDAMENTAL_FILENAME)" "https://api.vcvrack.com/download?slug=Fundamental&version=$(FUNDAMENTAL_VERSION)&arch=$(ARCH_NAME)"
 
 
 dist: $(TARGET) $(STANDALONE_TARGET) $(DIST_HTML) $(FUNDAMENTAL_FILENAME)
