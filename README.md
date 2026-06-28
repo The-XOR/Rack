@@ -65,3 +65,31 @@ Per sincronizzare il sincornizzabile:
 1 - git fetch upstream
 2 - git checkout v2
 3 - git merge upstream/v2
+
+
+## Supporto OpenGL per macchine virtuose
+Per far girare Rack in una macchina virtuosa, e' richiesto OpenGL.
+
+- download an already compiled distribution of the Mesa3D sources at https://github.com/pal1000/mesa-dist-win/releases
+- Extract and run systemwidedeploy.cmd in a command prompt.
+
+You should see something like this:
+
+-------------------------------------
+Mesa3D system-wide deployment utility
+-------------------------------------
+Please make a deployment choice:
+1. Core desktop OpenGL drivers
+2. Core desktop OpenGL drivers + Intel swr
+3. Install DirectX IL for redistribution only
+4. Microsoft OpenGL over D3D12 driver only (replaces Mesa core desktop OpenGL drivers)
+5. Mesa3D off-screen render driver gallium version (osmesa gallium)
+7. Mesa3D graw test framework
+8. Update system-wide deployment
+9. Remove system-wide deployments (uninstall)
+10. Exit
+Enter choice:
+
+Select the first option 1. Core desktop OpenGL drivers
+And thats it.
+
